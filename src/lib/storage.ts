@@ -304,22 +304,16 @@ function localCalendarDateKey(): string {
   return `${y}-${m}-${day}`;
 }
 
-async function syncStoredResultStyleToPlan(plan: Plan): Promise<void> {
+async function syncStoredResultStyleToPlan(_plan: Plan): Promise<void> {
   const rs = await AsyncStorage.getItem(RESULT_STYLE_KEY);
   const n = normalizeStoredResultStyleToken(rs);
-  if (plan === 'free') {
-    if (n !== 'quick') {
-      await AsyncStorage.setItem(RESULT_STYLE_KEY, 'quick');
-    }
-    return;
-  }
   if (n === 'quick' || n === 'advanced') {
     if (rs !== n) {
       await AsyncStorage.setItem(RESULT_STYLE_KEY, n);
     }
     return;
   }
-  await AsyncStorage.setItem(RESULT_STYLE_KEY, 'advanced');
+  await AsyncStorage.setItem(RESULT_STYLE_KEY, 'quick');
 }
 
 export const getPlan = async (): Promise<Plan> => {
@@ -378,11 +372,12 @@ export const getPlan = async (): Promise<Plan> => {
 export const setPlan = async (plan: Plan): Promise<void> => {
   console.warn('[planDebug][storage] setPlan input', plan);
   if (plan === 'free') {
+    const cur = normalizeStoredResultStyleToken(await AsyncStorage.getItem(RESULT_STYLE_KEY)) ?? 'quick';
     await AsyncStorage.multiSet([
       [PLAN_KEY, plan],
-      [RESULT_STYLE_KEY, 'quick'],
+      [RESULT_STYLE_KEY, cur],
     ]);
-    console.warn('[planDebug][storage] setPlan wrote', { plan, resultStyle: 'quick' });
+    console.warn('[planDebug][storage] setPlan wrote', { plan, resultStyle: cur });
     return;
   }
   const prevRaw = await AsyncStorage.getItem(PLAN_KEY);
@@ -473,8 +468,7 @@ export const getResultStyle = async (): Promise<ResultStyle> => {
   }
   await syncStoredResultStyleToPlan(plan);
   const rawStyleAfterSync = await AsyncStorage.getItem(RESULT_STYLE_KEY);
-  const normalizedStyle: ResultStyle =
-    plan === 'free' ? 'quick' : normalizeStoredResultStyleToken(rawStyleAfterSync) ?? 'advanced';
+  const normalizedStyle: ResultStyle = normalizeStoredResultStyleToken(rawStyleAfterSync) ?? 'quick';
   console.warn('[planDebug][storage] getResultStyle normalized', {
     normalizedStyle,
     rawResultStyleAfterSync: rawStyleAfterSync,
@@ -486,14 +480,9 @@ export const setResultStyle = async (value: ResultStyle): Promise<void> => {
   const plan = await getPlan();
   const rawBefore = await AsyncStorage.getItem(RESULT_STYLE_KEY);
   console.warn('[planDebug][storage] setResultStyle input', { style: value, plan, rawResultStyleBefore: rawBefore });
-  if (plan === 'free') {
-    await AsyncStorage.setItem(RESULT_STYLE_KEY, 'quick');
-    console.warn('[planDebug][storage] setResultStyle wrote', { finalStyle: 'quick', forcedOverride: 'free->quick' });
-    return;
-  }
   const next = value === 'advanced' ? 'advanced' : 'quick';
   await AsyncStorage.setItem(RESULT_STYLE_KEY, next);
-  console.warn('[planDebug][storage] setResultStyle wrote', { finalStyle: next, plan: 'unlimited' });
+  console.warn('[planDebug][storage] setResultStyle wrote', { finalStyle: next, plan });
 };
 
 export const getAvoidPreferences = async (): Promise<AvoidPreference[]> => {

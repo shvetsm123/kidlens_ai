@@ -9,7 +9,6 @@ import {
   type ResultStyle,
 } from '../types/preferences';
 import type { RecentScan } from '../types/scan';
-import { showMoreInfoUnlimitedUpsell } from '../lib/moreInfoUnlimitedAlert';
 import { selectDistinctDisplayReasons } from '../lib/scanResultAntiRepeat';
 import { resolveUiResultStyle, resolvedNutritionSnapshotLinesForMode } from '../lib/resultStyleHelpers';
 import { VerdictBadge } from './VerdictBadge';
@@ -41,7 +40,7 @@ export function ScanResultModal({
   onFavoritePress,
   onClose,
   onScanAgain,
-  onOpenPaywall,
+  onOpenPaywall: _onOpenPaywall,
   onSelectInfoLevel,
   reuseNotice,
 }: ScanResultModalProps) {
@@ -268,9 +267,6 @@ export function ScanResultModal({
                   >
                     <Pressable
                       onPress={() => {
-                        if (plan === 'free') {
-                          return;
-                        }
                         if (resultStyle !== 'quick') {
                           onSelectInfoLevel?.('quick');
                         }
@@ -295,12 +291,6 @@ export function ScanResultModal({
                     </Pressable>
                     <Pressable
                       onPress={() => {
-                        if (plan === 'free') {
-                          showMoreInfoUnlimitedUpsell(() => {
-                            onOpenPaywall();
-                          });
-                          return;
-                        }
                         if (resultStyle !== 'advanced') {
                           onSelectInfoLevel?.('advanced');
                         }
@@ -310,10 +300,6 @@ export function ScanResultModal({
                         paddingVertical: 9,
                         borderRadius: 11,
                         backgroundColor: mode === 'advanced' ? '#FFFDF8' : 'transparent',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 5,
                       }}
                     >
                       <Text
@@ -326,9 +312,6 @@ export function ScanResultModal({
                       >
                         More info
                       </Text>
-                      {plan === 'free' ? (
-                        <Ionicons name="lock-closed-outline" size={15} color="#9A8B7A" />
-                      ) : null}
                     </Pressable>
                   </View>
                 ) : null}

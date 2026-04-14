@@ -7,18 +7,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getPlan, getResultStyle, setPlan } from '../src/lib/storage';
 import type { Plan } from '../src/types/preferences';
 
-type UnlimitedCardDef = {
-  id: 'unlimited';
+type PlanCardDef = {
+  id: Plan;
   title: string;
   subtitle: string;
   features: string[];
 };
 
-const UNLIMITED_CARD: UnlimitedCardDef = {
+const FREE_CARD: PlanCardDef = {
+  id: 'free',
+  title: 'Free',
+  subtitle: 'Everything you need to scan with confidence',
+  features: [
+    '2 scans per day',
+    'Less info',
+    'More info',
+    'AI analysis with child age + avoid list',
+    'Access to 4+ million products',
+  ],
+};
+
+const UNLIMITED_CARD: PlanCardDef = {
   id: 'unlimited',
   title: 'Unlimited',
-  subtitle: 'Full scans and saved favorites',
-  features: ['Unlimited scans', 'Less or More info', 'Favorites'],
+  subtitle: 'No daily limits and saved favorites',
+  features: ['Unlimited scans', 'Favorites'],
 };
 
 const COMING_SOON_FEATURES = ['Discussions', 'Community features', 'More tools coming soon'];
@@ -28,7 +41,9 @@ function parsePlanQueryParam(raw: string | string[] | undefined): Plan | null {
   if (v === 'unlimited') {
     return 'unlimited';
   }
-  // Legacy deep link / old builds — same paid tier as Unlimited today
+  if (v === 'free') {
+    return 'free';
+  }
   if (v === 'insights') {
     return 'unlimited';
   }
@@ -38,18 +53,20 @@ function parsePlanQueryParam(raw: string | string[] | undefined): Plan | null {
 export default function PaywallScreen() {
   const params = useLocalSearchParams<{ plan?: string | string[] }>();
   const [currentPlan, setCurrentPlan] = useState<Plan>('free');
-  const [selectedPaid, setSelectedPaid] = useState<Plan>('unlimited');
+  const [selectedPlan, setSelectedPlan] = useState<Plan>('unlimited');
 
   const load = useCallback(async () => {
     const p = await getPlan();
     setCurrentPlan(p);
     const fromRoute = parsePlanQueryParam(params.plan);
     if (fromRoute === 'unlimited') {
-      setSelectedPaid('unlimited');
+      setSelectedPlan('unlimited');
+    } else if (fromRoute === 'free') {
+      setSelectedPlan('free');
     } else if (p === 'unlimited') {
-      setSelectedPaid('unlimited');
+      setSelectedPlan('unlimited');
     } else {
-      setSelectedPaid('unlimited');
+      setSelectedPlan('unlimited');
     }
   }, [params.plan]);
 
@@ -64,21 +81,22 @@ export default function PaywallScreen() {
   };
 
   const onContinue = async () => {
-    console.warn('[planDebug][paywall] before setPlan', { selectedPaid, currentPlan });
-    await setPlan(selectedPaid);
+    console.warn('[planDebug][paywall] before setPlan', { selectedPlan, currentPlan });
+    await setPlan(selectedPlan);
     const nextPlan = await getPlan();
     const nextStyle = await getResultStyle();
     console.warn('[planDebug][paywall] after setPlan', { nextPlan, nextStyle });
     router.back();
   };
 
-  const continueDisabled = currentPlan === selectedPaid;
+  const continueDisabled = currentPlan === selectedPlan;
 
   const onComingSoonPress = useCallback(() => {
     Alert.alert('Coming soon', 'This plan is not available yet.');
   }, []);
 
-  const unlimitedSelected = selectedPaid === 'unlimited';
+  const freeSelected = selectedPlan === 'free';
+  const unlimitedSelected = selectedPlan === 'unlimited';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F6F1E8' }} edges={['top', 'left', 'right']}>
@@ -112,28 +130,70 @@ export default function PaywallScreen() {
           Mock checkout — plans are stored on this device only.
         </Text>
 
-        {currentPlan !== 'free' ? (
-          <View
-            style={{
-              marginTop: 20,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              borderRadius: 16,
-              backgroundColor: '#E8EFE8',
-              borderWidth: 1,
-              borderColor: '#C5D4C5',
-            }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#3D5A40' }}>Current plan: Unlimited</Text>
-            <Text style={{ marginTop: 6, fontSize: 13, color: '#5A6B5A', lineHeight: 18 }}>
-              You have full access. You can review your selection below.
-            </Text>
-          </View>
-        ) : null}
+        <View
+          style={{
+            marginTop: 20,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            borderRadius: 16,
+            backgroundColor: '#E8EFE8',
+            borderWidth: 1,
+            borderColor: '#C5D4C5',
+          }}
+        >
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#3D5A40' }}>
+            Current plan: {currentPlan === 'free' ? 'Free' : 'Unlimited'}
+          </Text>
+          <Text style={{ marginTop: 6, fontSize: 13, color: '#5A6B5A', lineHeight: 18 }}>
+            You can switch plans below, then tap Continue.
+          </Text>
+        </View>
 
         <View style={{ marginTop: 24, gap: 14 }}>
           <Pressable
-            onPress={() => setSelectedPaid('unlimited')}
+            onPress={() => setSelectedPlan('free')}
+            style={{
+              backgroundColor: '#FFFDF8',
+              borderRadius: 22,
+              padding: 20,
+              borderWidth: 2,
+              borderColor: freeSelected ? '#C9A06E' : '#E8DFD4',
+              shadowColor: '#9B8D7A',
+              shadowOpacity: freeSelected ? 0.14 : 0.06,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 6 },
+              elevation: freeSelected ? 4 : 1,
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: '#1F1A16' }}>{FREE_CARD.title}</Text>
+                <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: '#6D6053' }}>{FREE_CARD.subtitle}</Text>
+              </View>
+              {currentPlan === 'free' ? (
+                <View
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 999,
+                    backgroundColor: '#E8EFE8',
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#3D5A40' }}>Current</Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={{ marginTop: 16, gap: 8 }}>
+              {FREE_CARD.features.map((f) => (
+                <Text key={f} style={{ fontSize: 15, lineHeight: 22, color: '#4F453B', fontWeight: '600' }}>
+                  • {f}
+                </Text>
+              ))}
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setSelectedPlan('unlimited')}
             style={{
               backgroundColor: '#FFFDF8',
               borderRadius: 22,

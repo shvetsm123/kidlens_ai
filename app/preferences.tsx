@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -8,50 +7,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   getAvoidPreferences,
   getChildAge,
-  getPlan,
-  getResultStyle,
   pushSupabasePreferencesFromLocal,
   setAvoidPreferences,
   setChildAge,
-  setResultStyle,
 } from '../src/lib/storage';
-import {
-  AVOID_PREFERENCE_OPTIONS,
-  type AvoidPreference,
-  type Plan,
-  type ResultStyle,
-} from '../src/types/preferences';
+import { AVOID_PREFERENCE_OPTIONS, type AvoidPreference } from '../src/types/preferences';
 
 const MIN_AGE = 1;
 const MAX_AGE = 16;
 const DEFAULT_AGE = 4;
 
-const RESULT_CARDS: { id: ResultStyle; title: string; body: string }[] = [
-  { id: 'quick', title: 'Less info', body: 'Verdict, one-line summary, 3–5 fact bullets' },
-  { id: 'advanced', title: 'More info', body: '5–8 bullets, nutrition, flags, full breakdown' },
-];
-
 export default function PreferencesScreen() {
   const [ready, setReady] = useState(false);
   const [age, setAge] = useState(DEFAULT_AGE);
-  const [resultStyle, setResultStyleState] = useState<ResultStyle>('quick');
   const [avoidList, setAvoidList] = useState<AvoidPreference[]>([]);
   const [saving, setSaving] = useState(false);
-  const [plan, setPlanUi] = useState<Plan>('free');
 
   const load = useCallback(async () => {
     const [storedAge, avoids] = await Promise.all([getChildAge(), getAvoidPreferences()]);
-    const p = await getPlan();
-    const style = await getResultStyle();
     if (storedAge !== null) {
       setAge(Math.min(MAX_AGE, Math.max(MIN_AGE, storedAge)));
     } else {
       setAge(DEFAULT_AGE);
     }
-    setResultStyleState(style);
     setAvoidList(avoids);
-    setPlanUi(p);
-    console.warn('[planDebug][preferences] load', { plan: p, style, storedAge, avoids });
+    console.warn('[planDebug][preferences] load', { storedAge, avoids });
     setReady(true);
   }, []);
 
@@ -72,33 +52,24 @@ export default function PreferencesScreen() {
   const onSave = async () => {
     setSaving(true);
     try {
-      const currentPlan = await getPlan();
-      console.warn('[prefsDebug] onSave before', { age, avoidList, resultStyle, currentPlan });
-      setPlanUi(currentPlan);
+      console.warn('[prefsDebug] onSave before', { age, avoidList });
       await setChildAge(age);
       console.warn('[prefsDebug] onSave after setChildAge', { getChildAge: await getChildAge() });
       await setAvoidPreferences(avoidList);
       console.warn('[prefsDebug] onSave after setAvoidPreferences', {
         getAvoidPreferences: await getAvoidPreferences(),
       });
-      const styleToSave: ResultStyle = currentPlan === 'free' ? 'quick' : resultStyle;
-      await setResultStyle(styleToSave);
       const savedAge = await getChildAge();
       const savedAvoids = await getAvoidPreferences();
-      const finalStyle = await getResultStyle();
-      console.warn('[prefsDebug] onSave after setResultStyle', {
+      console.warn('[prefsDebug] onSave after writes', {
         savedAge,
         savedAvoids,
-        finalStyle,
-        styleToSave,
       });
-      setResultStyleState(finalStyle);
       await pushSupabasePreferencesFromLocal();
       console.warn('[prefsDebug] onSave after pushSupabasePreferencesFromLocal', 'push completed');
       console.warn('[prefsDebug] onSave before router.back', {
         getChildAge: await getChildAge(),
         getAvoidPreferences: await getAvoidPreferences(),
-        getResultStyle: await getResultStyle(),
       });
       router.back();
     } finally {
@@ -221,71 +192,6 @@ export default function PreferencesScreen() {
             >
               <Text style={{ fontSize: 24, fontWeight: '700', color: age >= MAX_AGE ? '#C4B8A8' : '#2C251F' }}>+</Text>
             </Pressable>
-          </View>
-        </View>
-
-        <View style={{ marginTop: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>Scan detail</Text>
-          <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: '#7A6E61' }}>
-            {plan === 'free'
-              ? 'Free uses Less info only · More info is included with Unlimited'
-              : 'Unlimited: choose Less info or More info for each scan'}
-          </Text>
-          <View style={{ marginTop: 14, gap: 10 }}>
-            {RESULT_CARDS.map((card) => {
-              const selected = resultStyle === card.id;
-              const advancedLocked = card.id === 'advanced' && plan !== 'unlimited';
-              return (
-                <Pressable
-                  key={card.id}
-                  onPress={() => {
-                    console.warn('[planDebug][preferences] tap result style', {
-                      tapped: card.id,
-                      currentPlan: plan,
-                      advancedLocked,
-                      currentStyle: resultStyle,
-                    });
-                    if (advancedLocked) {
-                      router.push({ pathname: '/paywall', params: { plan: 'unlimited' } });
-                      return;
-                    }
-                    setResultStyleState(card.id);
-                  }}
-                  style={{
-                    backgroundColor: advancedLocked ? '#FAF7F2' : '#FFFDF8',
-                    borderRadius: 18,
-                    paddingVertical: 16,
-                    paddingHorizontal: 16,
-                    borderWidth: 1,
-                    borderColor: selected ? '#C9A06E' : advancedLocked ? '#E0D4C4' : '#E8DFD4',
-                    shadowColor: '#9B8D7A',
-                    shadowOpacity: selected ? 0.1 : 0.06,
-                    shadowRadius: 12,
-                    shadowOffset: { width: 0, height: 4 },
-                    elevation: selected ? 3 : 1,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        fontWeight: '700',
-                        color: advancedLocked ? '#7A6E61' : '#1F1A16',
-                      }}
-                    >
-                      {card.title}
-                    </Text>
-                    {advancedLocked ? <Ionicons name="lock-closed-outline" size={20} color="#B59B7A" /> : null}
-                  </View>
-                  <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: '#6D6053' }}>{card.body}</Text>
-                  {advancedLocked ? (
-                    <Text style={{ marginTop: 10, fontSize: 13, lineHeight: 18, color: '#9A8B7A', fontWeight: '600' }}>
-                      Advanced info is included with Unlimited.
-                    </Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
           </View>
         </View>
 

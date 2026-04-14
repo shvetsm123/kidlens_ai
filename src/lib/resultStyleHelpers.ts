@@ -3,9 +3,9 @@ import type { Plan, ResultStyle } from '../types/preferences';
 import type { Verdict } from '../types/scan';
 import { clampFinalVerdictToBase } from './preferenceMatchers';
 
-/** Scan result UI depth: Free → Quick only; Unlimited → user’s stored quick/advanced. */
-export function resolveUiResultStyle(plan: Plan, storedStyle: ResultStyle): ResultStyle {
-  return plan === 'free' ? 'quick' : storedStyle;
+/** Scan result UI depth: both plans use the stored Less/More (quick/advanced) preference. */
+export function resolveUiResultStyle(_plan: Plan, storedStyle: ResultStyle): ResultStyle {
+  return storedStyle;
 }
 
 const VERDICTS: readonly Verdict[] = ['good', 'sometimes', 'avoid', 'unknown'];
