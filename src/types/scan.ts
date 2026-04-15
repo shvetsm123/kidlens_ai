@@ -28,6 +28,8 @@ export type SavedScanResult = {
   nutritionSnapshot?: string[];
   /** Short composition / allergen-style flags (from AI). */
   ingredientFlags?: string[];
+  /** Short official-guidance-style context (advanced; optional on older saves). */
+  guidanceContext?: string[];
   /** Raw Open Food Facts `product` object for Supabase `raw_json`. */
   rawJson?: Record<string, unknown>;
   /** Fingerprint of child age + result style + avoids when this result was produced; used for reuse. */

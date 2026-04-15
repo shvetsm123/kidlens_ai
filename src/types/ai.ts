@@ -19,6 +19,8 @@ export type AiResult = {
   nutritionSnapshot: string[];
   /** Short flag lines grounded in ingredients / allergens / categories. */
   ingredientFlags: string[];
+  /** Advanced "official context" lines; empty for quick scans. */
+  guidanceContext: string[];
 };
 
 export type KidsAiInput = {

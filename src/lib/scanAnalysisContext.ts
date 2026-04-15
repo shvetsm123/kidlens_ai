@@ -13,6 +13,19 @@ export function buildScanAnalysisContextKey(
   return `${b}::${age}::${resultStyle}::${sorted}`;
 }
 
+/** Reads the rounded child age embedded in `analysisContextKey`, if present. */
+export function parseChildAgeFromAnalysisContextKey(key: string | undefined): number | null {
+  if (!key || typeof key !== 'string') {
+    return null;
+  }
+  const seg = key.split('::')[1];
+  if (!seg || seg === 'na') {
+    return null;
+  }
+  const n = Number(seg);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Newest-first list: returns first saved scan that matches barcode + analysis context (non-unknown). */
 export function findRecentScanForReuse(
   scans: RecentScan[],

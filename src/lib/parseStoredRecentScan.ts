@@ -132,6 +132,10 @@ export function parseStoredRecentScan(raw: unknown): RecentScan | null {
   if (flagsStored.length > 0) {
     out.ingredientFlags = flagsStored;
   }
+  const guidanceStored = asTrimmedStringArray(o.guidanceContext, 3);
+  if (guidanceStored.length > 0) {
+    out.guidanceContext = guidanceStored;
+  }
 
   if (preferenceMatchesRaw.length > 0) {
     out.preferenceMatches = preferenceMatchesRaw;

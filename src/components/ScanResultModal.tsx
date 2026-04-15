@@ -10,6 +10,7 @@ import {
 } from '../types/preferences';
 import type { RecentScan } from '../types/scan';
 import { selectDistinctDisplayReasons } from '../lib/scanResultAntiRepeat';
+import { resolvedGuidanceContextLines } from '../lib/officialGuidanceContext';
 import { resolveUiResultStyle, resolvedNutritionSnapshotLinesForMode } from '../lib/resultStyleHelpers';
 import { VerdictBadge } from './VerdictBadge';
 
@@ -68,6 +69,7 @@ export function ScanResultModal({
         nutritionLines,
       })
     : [];
+  const guidanceLines = scan ? resolvedGuidanceContextLines(mode, scan) : [];
   const ingredientParagraphs = (
     scan?.ingredientBreakdown?.filter((p) => typeof p === 'string' && p.trim()) ?? []
   ).slice(0, 4);
@@ -352,6 +354,19 @@ export function ScanResultModal({
                 </Text>
               ))}
             </View>
+
+            {mode === 'advanced' && guidanceLines.length > 0 ? (
+              <View style={{ marginTop: 16 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#6B5C4A' }}>Official guidance context</Text>
+                <View style={{ marginTop: 8, gap: 8 }}>
+                  {guidanceLines.map((line, index) => (
+                    <Text key={`${line}-${index}`} style={{ fontSize: 14, color: '#5D5246', lineHeight: 20 }}>
+                      • {line}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
             {mode === 'advanced' && nutritionLines.length > 0 ? (
               <View style={{ marginTop: 18 }}>

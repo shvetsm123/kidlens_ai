@@ -45,6 +45,7 @@ export function getFallbackAiResult(
           'Ingredient list length not re-evaluated here',
         ]
       : [],
+    guidanceContext: [],
     ingredientBreakdown: advanced ? FALLBACK_BREAKDOWN : [FALLBACK_BREAKDOWN_PARA1, FALLBACK_BREAKDOWN_PARA2],
     allergyNotes: [],
     parentTakeaway: 'Try again when you have a connection.',

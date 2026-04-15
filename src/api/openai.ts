@@ -1,6 +1,7 @@
 import { fetch as expoFetch } from 'expo/fetch';
 import { Platform } from 'react-native';
 
+import { buildOfficialGuidanceContextLines } from '../lib/officialGuidanceContext';
 import { getFallbackAiResult } from '../lib/getFallbackAiResult';
 import { normalizeCanonicalAiPayload } from '../lib/resultStyleHelpers';
 import type { AiResult, KidsAiInput } from '../types/ai';
@@ -19,7 +20,7 @@ CORE ORDER
 AUTHORITATIVE VERDICTS (non-negotiable)
 - ruleBasedBaseVerdict is the app's hard outcome. Set baseVerdict to exactly the same string as ruleBasedBaseVerdict.
 - finalVerdict: if avoidPreferences is empty or nothing matches, finalVerdict MUST equal ruleBasedBaseVerdict. If an avoid clearly matches product text, finalVerdict may be stricter than ruleBasedBaseVerdict but NEVER more lenient.
-- summary, reasons, nutritionSnapshot, ingredientFlags, ingredientBreakdown, allergyNotes, and parentTakeaway MUST align with those verdicts.
+- summary, reasons, nutritionSnapshot, ingredientFlags, ingredientBreakdown, allergyNotes, parentTakeaway, and guidanceContext MUST align with those verdicts.
 
 AVOID PREFERENCES
 - If avoidPreferences is missing or empty: preferenceMatches MUST be [].
@@ -31,17 +32,24 @@ DATA HONESTY
 - Use nutriments keys when present (e.g. sugars_100g, salt_100g, sodium_100g, saturated-fat_100g, energy-kcal_100g). Prefer salt_100g; if only sodium_100g exists, you may phrase sodium in mg per 100 g (convert from g if needed).
 - Detect sweeteners or caffeine only from clear ingredient/category/name signals, not assumptions.
 
+OFFICIAL-STYLE ANCHORS (paraphrase only; no URLs; no long citations; never name-drop as legal claims)
+- CDC / Dietary Guidelines spirit: children under 2 should not have added sugars—when ingredients or numbers support it, say so plainly and strictly for under-2.
+- NHS-style child free-sugar bands (rough daily guidance often cited for parents): ages 2–3 about 14 g/day, 4–6 about 19 g/day, 7–10 about 24 g/day—only compare to these when sugars_100g (or clear sweetening from the listing) supports a fair share-of-day comment; never invent grams not on the listing.
+- WHO: free sugars are often discussed as staying below about 10% of total energy, ideally below about 5%—only bring this in when energy-kcal_100g and sugars_100g together support a calories-from-sugars share comment; total sugars on a label are not always the same as "free sugars", so phrase cautiously ("sugars listed here", "a sizable share of the calories listed").
+- EU / EFSA-style framing: use it lightly for child-sensitive salt or overall label-reading context—e.g. high salt for a small child’s snack—only when salt_100g or sodium_100g supports it.
+
 AGE FRAMING (brief, official-style, not quoted)
-- Under 2: treat added sugar / clearly sweetened products strictly in wording.
-- 2–3: note that free sugar allowance is small, so sugar can use a noticeable share of the day when numbers exist.
-- 4–6: still contextualize sugar and salt for snacks vs everyday foods.
+- Under 2: added sugar / clearly sweetened products—strict wording aligned with "generally not recommended" for added sugars when the listing supports it.
+- 2–10: when per-100g sugar exists, you may relate it to the small NHS-cited daily free-sugar amounts above (noticeable or large share of the day)—no fake portions.
 - Never use vague praise like "nutrient-rich", "natural vegetable", "age-appropriate", "healthy option", "can be enjoyed in moderation" unless tightly justified by data (prefer not to use them at all).
 
 PRODUCT TYPE
 - Infer obvious type only when supported by categories/name/ingredients (yogurt, dessert, cookies, chips, candy, snack, drink, puree, cereal, pasta, plain food, etc.).
 
 SUMMARY (one sentence)
-- One short child-focused sentence (interpretation), different in tone from the factual bullets. Examples of tone (do not copy verbatim): "For this age, better sometimes than every day." / "For children under 2, this is not a good fit." / "For this age, the salt level makes this a weaker snack choice."
+- One short child-focused sentence (interpretation), different in tone from the factual bullets.
+- You may add one short official-guidance-aware clause in the same sentence ONLY when nutriments or ingredient text supports it (e.g. under-2 added sugar; NHS-band sugar allowance share; WHO-style calorie share from listed sugars; salt)—no URLs, no citation dumps.
+- Examples of tone (do not copy verbatim): "For this age, better sometimes than every day." / "For children under 2, added sugar is generally not recommended, and this listing supports that concern." / "For ages 4–6, this uses a noticeable share of the daily sugar allowance."
 
 REASONS (array length depends on input.resultStyle — user message states exact counts)
 - Factual bullets first: sugar per 100 g or ml; salt (or sodium); saturated fat; sweetening / added sugar signals; sweeteners; caffeine; allergens; snack or dessert style; ingredient list length—only with listing support.
@@ -64,6 +72,12 @@ allergyNotes (array)
 parentTakeaway (one line)
 - One practical closing line aligned with verdict and age (e.g. "Better occasionally than daily for this age.").
 
+guidanceContext (array of strings)
+- For input.resultStyle "quick": MUST be [] (empty array).
+- For "advanced": 1–3 very short parent lines (max ~220 characters each) for a section like "Official guidance context". Use ONLY when at least one line is defensible from nutriments and/or explicit listing text (same honesty rules as elsewhere). If nothing defensible, use [].
+- No URLs; no long citations; no organization names required—plain parent language is fine.
+- Do not repeat the full summary; complement it with benchmark framing (CDC under-2 added sugars; NHS-cited daily free-sugar bands; WHO energy %; EU-style salt read for kids) only when data-backed.
+
 CANONICAL OUTPUT (always include every key; arrays may be empty)
 {
   "baseVerdict": "good"|"sometimes"|"avoid"|"unknown",
@@ -75,7 +89,8 @@ CANONICAL OUTPUT (always include every key; arrays may be empty)
   "ingredientFlags": string[],
   "ingredientBreakdown": string[],
   "allergyNotes": string[],
-  "parentTakeaway": string
+  "parentTakeaway": string,
+  "guidanceContext": string[]
 }
 
 Never infer cow's milk / dairy from yogurt alone; mention milk/dairy only when explicit in text or allergens.`;
@@ -87,12 +102,32 @@ function depthInstructionsForResultStyle(resultStyle: ResultStyle): string {
 - nutritionSnapshot: include every useful per-100g line supported by nutriments; if partly missing, one honest line is fine—never invent grams.
 - ingredientFlags: aim for 5–14 distinct flags when the listing supports them; fewer is fine if evidence is thin.
 - ingredientBreakdown: 3 or 4 paragraphs preferred (minimum 2). Each paragraph at least 40 characters, calmer than the bullet list, mini-article feel, still mobile-friendly.
+- guidanceContext: 1–3 short strings when official-style framing is supportable from the listing; otherwise []. Must not echo the summary verbatim.
 - summary stays one sentence and must not duplicate bullet wording.`;
   }
   return `REQUIRED COUNTS FOR THIS REQUEST (input.resultStyle is "quick"):
 - reasons: 3 to 5 strings, each 8–160 characters, factual and compact; each must differ from summary and preferenceMatches (no second sugar line if sugar is already the main story there).
 - nutritionSnapshot and ingredientFlags: keep sparse or empty unless a few lines add clear value.
-- ingredientBreakdown: 2 or 3 tighter paragraphs (minimum 2), each at least 22 characters; keep composition-focused but shorter than advanced.`;
+- ingredientBreakdown: 2 or 3 tighter paragraphs (minimum 2), each at least 22 characters; keep composition-focused but shorter than advanced.
+- guidanceContext MUST be [].`;
+}
+
+function enrichGuidanceContext(input: KidsAiInput, evaluation: AiResult): AiResult {
+  if (input.resultStyle !== 'advanced') {
+    return { ...evaluation, guidanceContext: [] };
+  }
+  const existing = evaluation.guidanceContext?.map((s) => s.trim()).filter(Boolean) ?? [];
+  if (existing.length > 0) {
+    return { ...evaluation, guidanceContext: existing.slice(0, 3) };
+  }
+  const age = typeof input.childAge === 'number' && Number.isFinite(input.childAge) ? input.childAge : null;
+  const filled = buildOfficialGuidanceContextLines(age, input.product.nutriments, {
+    productName: input.product.productName,
+    brand: input.product.brand,
+    ingredientsText: input.product.ingredientsText,
+    categories: input.product.categories,
+  });
+  return { ...evaluation, guidanceContext: filled.slice(0, 3) };
 }
 
 function parseJson(content: string): unknown {
@@ -177,15 +212,16 @@ export async function evaluateProductWithAi(input: KidsAiInput): Promise<AiResul
       console.warn(LOG_PREFIX, 'using fallback: evaluation JSON failed validation', { parsed });
       return getFallbackAiResult(ruleBase, input.resultStyle);
     }
+    const enriched = enrichGuidanceContext(input, evaluation);
     const hadAvoidPrefs = Array.isArray(input.avoidPreferences) && input.avoidPreferences.length > 0;
     if (!hadAvoidPrefs) {
       return {
-        ...evaluation,
+        ...enriched,
         preferenceMatches: [],
-        verdict: evaluation.baseVerdict,
+        verdict: enriched.baseVerdict,
       };
     }
-    return evaluation;
+    return enriched;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(LOG_PREFIX, 'caught error:', message, err);

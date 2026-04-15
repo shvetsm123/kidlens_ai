@@ -262,6 +262,10 @@ export function normalizeCanonicalAiPayload(
 
   const allergyNotes = parseAllergyNotesList(o.allergyNotes);
 
+  const guidanceContext = advanced
+    ? parseBoundedStringList(o.guidanceContext, 3, 220)
+    : [];
+
   return {
     baseVerdict: ruleBasedBaseVerdict,
     verdict,
@@ -273,5 +277,6 @@ export function normalizeCanonicalAiPayload(
     ingredientBreakdown,
     allergyNotes,
     parentTakeaway,
+    guidanceContext,
   };
 }

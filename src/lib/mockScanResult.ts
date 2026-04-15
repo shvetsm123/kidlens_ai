@@ -31,9 +31,10 @@ export function createFallbackRecentScan(barcode: string, _childAge: number | nu
     verdict: 'unknown',
     summary: 'For this age, no product match—try scanning again.',
     reasons: ['No product page matched this barcode', 'Sugar and salt not available here', 'Scan again with a clearer barcode'],
-    nutritionSnapshot: [],
-    ingredientFlags: [],
-    ingredientBreakdown: [
+      nutritionSnapshot: [],
+      ingredientFlags: [],
+      guidanceContext: [],
+      ingredientBreakdown: [
       'Without a matched product, we cannot summarize what the ingredient list looks like.',
       'Try scanning again with a clearer view of the barcode so we can load real product text.',
     ],
@@ -81,6 +82,7 @@ export async function buildRecentScanFromBarcode(barcode: string): Promise<Build
       parentTakeaway: ai.parentTakeaway,
       nutritionSnapshot: ai.nutritionSnapshot,
       ingredientFlags: ai.ingredientFlags,
+      guidanceContext: ai.guidanceContext,
     };
 
     if (avoidPreferences.length > 0 && ai.preferenceMatches.length > 0) {

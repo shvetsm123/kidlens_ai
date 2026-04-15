@@ -94,6 +94,13 @@ function hasAddedSugarOrClearlySweetened(c: string): boolean {
   return ADDED_SUGAR_OR_SWEETENED.test(c);
 }
 
+/** True when the product name / ingredients / categories suggest added or clearly sweetened sugars (not lab “total sugar” alone). */
+export function listingSuggestsAddedOrClearSweetening(
+  product: Pick<NormalizedProduct, 'productName' | 'brand' | 'ingredientsText' | 'categories'>,
+): boolean {
+  return hasAddedSugarOrClearlySweetened(corpus(product as NormalizedProduct));
+}
+
 function isFlavoredOrDessertYogurt(c: string): boolean {
   if (!YOGURT_HINT.test(c)) {
     return false;
