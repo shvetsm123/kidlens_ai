@@ -1,3 +1,4 @@
+import type { ChildAgeProfile } from '../lib/childAgeContext';
 import type { AppLanguage } from '../lib/deviceLanguage';
 import type { AvoidPreference, ResultStyle } from './preferences';
 import type { Verdict } from './scan';
@@ -33,7 +34,11 @@ export type IngredientsAiInput = {
   outputLanguage: AppLanguage;
   /** BCP-47 locale from the device when available (e.g. ru-RU, uk-UA). */
   localeHint?: string;
+  /** Whole years (0 for infants under 1); see childAgeProfile for month-precise context. */
   childAge: number;
+  childAgeMonths?: number | null;
+  ageDisplayLabel?: string;
+  ageBucket?: string;
   avoidPreferenceIds: AvoidPreference[];
   cleanedIngredientLines: string[];
   additivesTags: string[];
@@ -43,7 +48,10 @@ export type IngredientsAiInput = {
 
 export type KidsAiInput = {
   mode: 'kids';
+  /** Whole completed years (0 for infants); prefer childAgeProfile for nuance. */
   childAge: number;
+  /** Full derived age context from date of birth or legacy years. */
+  childAgeProfile: ChildAgeProfile;
   /** App-enforced verdict from rule engine; AI must not contradict. */
   ruleBasedBaseVerdict: Verdict;
   /** Shown result depth; does not change verdict. */

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
+import type { ChildAgeProfile } from '../lib/childAgeContext';
 import type { RecentScan } from '../types/scan';
 
 const url = typeof process.env.EXPO_PUBLIC_SUPABASE_URL === 'string' ? process.env.EXPO_PUBLIC_SUPABASE_URL.trim() : '';
@@ -37,6 +38,7 @@ export type DbPreferencesRow = {
   id?: string;
   profile_id: string;
   child_age: number | null;
+  child_birthdate?: string | null;
   result_style: string | null;
   avoid_preferences: unknown;
   updated_at?: string | null;
@@ -72,7 +74,7 @@ export async function fetchPreferencesForProfile(
 ): Promise<DbPreferencesRow | null> {
   const { data, error } = await client
     .from('preferences')
-    .select('id,profile_id,child_age,result_style,avoid_preferences,updated_at')
+    .select('id,profile_id,child_age,child_birthdate,result_style,avoid_preferences,updated_at')
     .eq('profile_id', profileId)
     .maybeSingle();
   if (error || !data) {
@@ -82,6 +84,9 @@ export async function fetchPreferencesForProfile(
 }
 
 export function preferencesRowHasValues(row: DbPreferencesRow): boolean {
+  if (typeof row.child_birthdate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(row.child_birthdate.trim())) {
+    return true;
+  }
   if (row.child_age != null && Number.isFinite(Number(row.child_age))) {
     return true;
   }
@@ -97,6 +102,7 @@ export async function upsertPreferencesForProfile(
   payload: {
     profile_id: string;
     child_age: number | null;
+    child_birthdate: string | null;
     result_style: string;
     avoid_preferences: string[];
   },
@@ -105,19 +111,13 @@ export async function upsertPreferencesForProfile(
     {
       profile_id: payload.profile_id,
       child_age: payload.child_age,
+      child_birthdate: payload.child_birthdate,
       result_style: payload.result_style,
       avoid_preferences: payload.avoid_preferences,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'profile_id' },
   );
-}
-
-function ageBandFromChildAge(childAge: number | null): string {
-  if (childAge == null || !Number.isFinite(childAge)) {
-    return 'unknown';
-  }
-  return String(Math.round(childAge));
 }
 
 export function normalizeProductBarcode(raw: unknown): string | null {
@@ -348,10 +348,10 @@ export async function persistSuccessfulScanHistory(
   client: SupabaseClient,
   profileId: string,
   scan: RecentScan,
-  childAge: number | null,
+  childAgeProfile: ChildAgeProfile,
 ): Promise<void> {
   try {
-    const ageBand = ageBandFromChildAge(childAge);
+    const ageBand = childAgeProfile.ageBucket;
     const productId = await getOrCreateProductId(client, scan);
     if (!productId) {
       console.warn('[Supabase] persistSuccessfulScanHistory: no product_id, skipping scan_history');

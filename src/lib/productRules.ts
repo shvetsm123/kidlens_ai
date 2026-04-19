@@ -1,5 +1,6 @@
 import type { NormalizedProduct } from '../api/openFoodFacts';
 import type { Verdict } from '../types/scan';
+import type { ChildAgeProfile } from './childAgeContext';
 import { verdictStrictness } from './preferenceMatchers';
 
 export type AgeBand = '0_1' | '1_2' | '2_3' | '4_6' | '7_10' | '11_plus';
@@ -28,6 +29,10 @@ const SWEET_DRINK = /\b(soda|soft drink|lemonade|fruit drink|juice drink|nectar)
 
 const JUNK_CATEGORY_TAGS =
   /en:(sweets|candies|chocolates|biscuits-and-cakes|snacks|desserts|sugared-beverages|sodas|energy-drinks|chips-and-fries|appetizers)/;
+
+/** Clear “treat / bakery / confection” wording in name or ingredients (under-12 tightening). */
+const YOUNG_BABY_TREAT_DESCRIPTORS =
+  /\b(chocolate bar|chocolate biscuit|chocolate spread|cake|cupcake|brownie|muffin|dessert|confection|lollipop|candy|cereal bar|snack bar|cookie|biscuit|croissant|danish|donut|doughnut|waffle|pancake mix)\b/i;
 
 function corpus(product: NormalizedProduct): string {
   const parts = [
@@ -68,8 +73,44 @@ export function getAgeBand(childAge: number): AgeBand {
   return '11_plus';
 }
 
-export function isUnderTwoYears(childAge: number): boolean {
-  return childAge < 2;
+/** Rule engine input: month-precise when `ageInMonths` is set, else legacy integer years. */
+export type ProductRulesChildInput = {
+  ageInMonths: number | null;
+  legacyYearsInt: number | null;
+  /** Floored whole years (0 for infants under 1). */
+  completedWholeYearsApprox: number;
+  /** Birthdate-known 0–5 completed months — stricter treat / salt / plain dairy handling. */
+  infantStrict: boolean;
+  /** Birthdate-known under 12 completed months — stricter than 12–23 month toddlers. */
+  infantUnder12: boolean;
+  /** 6–11 completed months (weaning-age band, still very conservative). */
+  infant611: boolean;
+};
+
+export function productRulesChildInputFromProfile(profile: ChildAgeProfile): ProductRulesChildInput {
+  const legacyYearsInt = profile.source === 'legacy_age' && profile.legacyChildAgeYears != null ? profile.legacyChildAgeYears : null;
+  const m = profile.ageInMonths;
+  const infantStrict = m != null && m <= 5;
+  const infantUnder12 = m != null && m < 12;
+  const infant611 = m != null && m >= 6 && m <= 11;
+  return {
+    ageInMonths: profile.ageInMonths,
+    legacyYearsInt,
+    completedWholeYearsApprox: profile.completedWholeYears,
+    infantStrict,
+    infantUnder12,
+    infant611,
+  };
+}
+
+function isUnder24MonthsInput(input: ProductRulesChildInput): boolean {
+  if (input.ageInMonths != null) {
+    return input.ageInMonths < 24;
+  }
+  if (input.legacyYearsInt != null) {
+    return input.legacyYearsInt < 2;
+  }
+  return false;
 }
 
 function dataTooLimited(product: NormalizedProduct, c: string): boolean {
@@ -157,7 +198,7 @@ function isSweetenedYogurtOrDessertLike(c: string): boolean {
   return isFlavoredOrDessertYogurt(c) || (YOGURT_HINT.test(c) && hasAddedSugarOrClearlySweetened(c));
 }
 
-function highSaltVerdict(product: NormalizedProduct, age: number): Verdict | null {
+function highSaltVerdict(product: NormalizedProduct, input: ProductRulesChildInput): Verdict | null {
   const salt = product.nutriments?.salt_100g;
   if (salt == null || !Number.isFinite(salt)) {
     return null;
@@ -165,10 +206,36 @@ function highSaltVerdict(product: NormalizedProduct, age: number): Verdict | nul
   if (salt >= 2.4) {
     return 'avoid';
   }
-  if (salt >= 1.5 && age <= 10) {
+  if (input.infantStrict && salt >= 1.0) {
+    return 'sometimes';
+  }
+  if (input.infant611 && salt >= 0.75) {
+    return 'sometimes';
+  }
+  if (input.infantUnder12 && !input.infantStrict && salt >= 0.85) {
+    return 'sometimes';
+  }
+  if (salt >= 1.5 && input.completedWholeYearsApprox <= 10) {
     return 'sometimes';
   }
   return null;
+}
+
+/** Under 12 months: obvious treat/snack/sweet-drink positioning → avoid when listing supports it. */
+function youngBabyProcessedAvoid(c: string, cat: string, input: ProductRulesChildInput): boolean {
+  if (!input.infantUnder12) {
+    return false;
+  }
+  if (JUNK_CATEGORY_TAGS.test(cat)) {
+    return true;
+  }
+  if (SWEET_DRINK.test(c)) {
+    return true;
+  }
+  if (YOUNG_BABY_TREAT_DESCRIPTORS.test(c)) {
+    return true;
+  }
+  return false;
 }
 
 function maxStrict(a: Verdict, b: Verdict): Verdict {
@@ -198,11 +265,12 @@ function nameOnlyObviousTreatUnderTwo(product: NormalizedProduct, c: string): bo
   return /\b(skittle|m&m|gummy|lollipop|candy bar|chocolate bar|marshmallow)\b/i.test(c);
 }
 
-export function computeRuleBasedBaseVerdict(childAge: number, product: NormalizedProduct): Verdict {
+export function computeRuleBasedBaseVerdict(input: ProductRulesChildInput, product: NormalizedProduct): Verdict {
   const c = corpus(product);
   const cat = categoriesBlob(product);
+  const under24 = isUnder24MonthsInput(input);
 
-  if (isUnderTwoYears(childAge) && nameOnlyObviousTreatUnderTwo(product, c)) {
+  if (under24 && nameOnlyObviousTreatUnderTwo(product, c)) {
     return 'avoid';
   }
 
@@ -210,11 +278,14 @@ export function computeRuleBasedBaseVerdict(childAge: number, product: Normalize
     return 'unknown';
   }
 
-  if (isUnderTwoYears(childAge)) {
+  if (under24) {
     if (hasCaffeine(c)) {
       return 'avoid';
     }
     if (hasSweeteners(c)) {
+      return 'avoid';
+    }
+    if (input.infantUnder12 && /\bhoney\b/i.test(c)) {
       return 'avoid';
     }
     if (hasAddedSugarOrClearlySweetened(c) && !isPlainUnsweetenedYogurt(c)) {
@@ -223,11 +294,17 @@ export function computeRuleBasedBaseVerdict(childAge: number, product: Normalize
     if (isFlavoredOrDessertYogurt(c) || isSweetSnackJunk(c, cat)) {
       return 'avoid';
     }
+    if (input.infantStrict && YOGURT_HINT.test(c) && /\b(maltodextrin|dextrose|glucose syrup|glucose-fructose syrup)\b/i.test(c)) {
+      return 'avoid';
+    }
     if (isEnergyOrCaffeinatedSnack(c)) {
       return 'avoid';
     }
+    if (youngBabyProcessedAvoid(c, cat, input)) {
+      return 'avoid';
+    }
     if (isPlainUnsweetenedYogurt(c)) {
-      return 'good';
+      return input.infantStrict || input.infant611 ? 'sometimes' : 'good';
     }
     return 'sometimes';
   }
@@ -241,7 +318,7 @@ export function computeRuleBasedBaseVerdict(childAge: number, product: Normalize
     v = maxStrict(v, 'avoid');
   }
 
-  const saltV = highSaltVerdict(product, childAge);
+  const saltV = highSaltVerdict(product, input);
   if (saltV) {
     v = maxStrict(v, saltV);
   }

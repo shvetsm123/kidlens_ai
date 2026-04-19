@@ -1,19 +1,22 @@
 import type { AvoidPreference } from '../types/preferences';
 import type { RecentScan } from '../types/scan';
 
+/**
+ * @param ageContextSegment from `serializeChildAgePreferenceForContext` (e.g. `d:2024-01-02`, `y:4`, `na`).
+ */
 export function buildScanAnalysisContextKey(
   barcode: string,
-  childAge: number | null,
+  ageContextSegment: string,
   avoidPreferences: AvoidPreference[],
 ): string {
   const b = barcode.trim();
-  const age = childAge == null || !Number.isFinite(childAge) ? 'na' : String(Math.round(childAge));
+  const age = ageContextSegment.trim() || 'na';
   const sorted = [...avoidPreferences].slice().sort().join(',');
   return `${b}::${age}::${sorted}`;
 }
 
-/** Reads the rounded child age embedded in `analysisContextKey`, if present. */
-export function parseChildAgeFromAnalysisContextKey(key: string | undefined): number | null {
+/** Middle segment of `analysisContextKey` (birthdate `d:…`, legacy `y:N`, historic plain integer year, or `na`). */
+export function extractAgeContextSegmentFromKey(key: string | undefined): string | null {
   if (!key || typeof key !== 'string') {
     return null;
   }
@@ -21,8 +24,7 @@ export function parseChildAgeFromAnalysisContextKey(key: string | undefined): nu
   if (!seg || seg === 'na') {
     return null;
   }
-  const n = Number(seg);
-  return Number.isFinite(n) ? n : null;
+  return seg;
 }
 
 /** Newest-first list: returns first saved scan that matches barcode + analysis context (non-unknown). */

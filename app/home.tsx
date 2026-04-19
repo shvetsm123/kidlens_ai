@@ -6,11 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,8 +22,11 @@ import { RecentScanCard } from '../src/components/RecentScanCard';
 import { ScanResultModal } from '../src/components/ScanResultModal';
 import { ScannerModal } from '../src/components/ScannerModal';
 import { getAppLanguage, t } from '../src/lib/i18n';
+import { digitsOnlyFromBarcodeInput, isValidManualBarcodeDigits } from '../src/lib/manualBarcode';
 import { buildRecentScanFromBarcode, createFallbackRecentScan } from '../src/lib/mockScanResult';
 import { showFavoritesUnlimitedUpsell } from '../src/lib/favoritesInsightsAlert';
+import type { ChildAgeProfile } from '../src/lib/childAgeContext';
+import { serializeChildAgePreferenceForContext } from '../src/lib/childAgeContext';
 import { buildScanAnalysisContextKey, findRecentScanForReuse } from '../src/lib/scanAnalysisContext';
 import {
   addRecentScan,
@@ -28,7 +34,7 @@ import {
   getAvoidPreferences,
   ensureSupabaseProfileLocal,
   getCachedSupabaseProfileId,
-  getChildAge,
+  getChildAgeProfile,
   getDailySuccessfulScanState,
   getPlan,
   getRecentScans,
@@ -102,7 +108,7 @@ type PendingPostScanOutcome =
       modalScan: RecentScan;
       activeId: string;
       daily: DailyScanSnapshot | null;
-      childAge: number | null;
+      childAgeProfile: ChildAgeProfile;
       supabaseScan: RecentScan | null;
     }
   | { kind: 'unknown'; scan: RecentScan }
@@ -126,6 +132,9 @@ export default function HomeScreen() {
   const [scannerCameraKey, setScannerCameraKey] = useState(0);
   const [unknownResultVisible, setUnknownResultVisible] = useState(false);
   const [unknownScan, setUnknownScan] = useState<RecentScan | null>(null);
+  const [manualBarcodeVisible, setManualBarcodeVisible] = useState(false);
+  const [manualBarcodeValue, setManualBarcodeValue] = useState('');
+  const [manualBarcodeError, setManualBarcodeError] = useState<string | null>(null);
 
   const activeResult = useMemo(() => {
     if (!activeModalScanId) {
@@ -180,7 +189,7 @@ export default function HomeScreen() {
             setDailyScanState(snapshot.daily);
           }
           if (snapshot.supabaseScan) {
-            void tryPersistSuccessfulScanToSupabase(snapshot.supabaseScan, snapshot.childAge);
+            void tryPersistSuccessfulScanToSupabase(snapshot.supabaseScan, snapshot.childAgeProfile);
           }
           setModalScan(snapshot.modalScan);
           setActiveModalScanId(snapshot.activeId);
@@ -281,11 +290,11 @@ export default function HomeScreen() {
 
   const hydrate = useCallback(async () => {
     await syncRemotePreferencesWithLocal();
-    const [scans, avoids, daily, age] = await Promise.all([
+    const [scans, avoids, daily, profile] = await Promise.all([
       getRecentScans(),
       getAvoidPreferences(),
       getDailySuccessfulScanState(),
-      getChildAge(),
+      getChildAgeProfile(),
     ]);
     const p = await getPlan();
     console.warn('[planDebug][home] hydrate', {
@@ -297,7 +306,7 @@ export default function HomeScreen() {
     setPlan(p);
     setAvoidPreferences(avoids);
     setDailyScanState(daily);
-    setChildAge(typeof age === 'number' && Number.isFinite(age) ? age : null);
+    setChildAge(Number.isFinite(profile.completedWholeYears) ? profile.completedWholeYears : null);
     if (p === 'unlimited') {
       await refreshFavoritesList();
     } else {
@@ -498,13 +507,17 @@ export default function HomeScreen() {
     }
 
     try {
-      const [childAge, avoids, freshRecent] = await Promise.all([
-        getChildAge(),
+      const [childAgeProfile, avoids, freshRecent] = await Promise.all([
+        getChildAgeProfile(),
         getAvoidPreferences(),
         getRecentScans(),
       ]);
       const normBarcode = data.trim();
-      const contextKey = buildScanAnalysisContextKey(normBarcode, childAge, avoids);
+      const contextKey = buildScanAnalysisContextKey(
+        normBarcode,
+        serializeChildAgePreferenceForContext(childAgeProfile),
+        avoids,
+      );
       const reusable = findRecentScanForReuse(freshRecent, normBarcode, contextKey);
 
       if (reusable) {
@@ -516,7 +529,7 @@ export default function HomeScreen() {
           modalScan: reusable,
           activeId: reusable.id,
           daily: null,
-          childAge,
+          childAgeProfile,
           supabaseScan: null,
         };
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -554,7 +567,7 @@ export default function HomeScreen() {
         outcome = await buildRecentScanFromBarcode(data);
       } catch {
         outcome = {
-          scan: createFallbackRecentScan(data, await getChildAge()),
+          scan: createFallbackRecentScan(data, (await getChildAgeProfile()).completedWholeYears),
           isSuccessfulProductScan: false,
         };
       }
@@ -571,7 +584,7 @@ export default function HomeScreen() {
             modalScan: scan,
             activeId: scan.id,
             daily: st,
-            childAge,
+            childAgeProfile,
             supabaseScan: scan,
           };
           if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -632,6 +645,38 @@ export default function HomeScreen() {
         }
       }
     }
+  };
+
+  const openManualBarcodeEntry = () => {
+    if (dailyLimitReached) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      navigatePaywall({ preselect: 'unlimited' });
+      return;
+    }
+    setManualBarcodeError(null);
+    setManualBarcodeValue('');
+    setManualBarcodeVisible(true);
+  };
+
+  const closeManualBarcodeEntry = () => {
+    setManualBarcodeVisible(false);
+    setManualBarcodeError(null);
+    Keyboard.dismiss();
+  };
+
+  const submitManualBarcode = () => {
+    const digits = digitsOnlyFromBarcodeInput(manualBarcodeValue);
+    if (!isValidManualBarcodeDigits(digits)) {
+      setManualBarcodeError(t('home.manualBarcodeInvalid', getAppLanguage()));
+      return;
+    }
+    setManualBarcodeError(null);
+    setManualBarcodeVisible(false);
+    Keyboard.dismiss();
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    queueMicrotask(() => {
+      void handleBarcodeScanned({ data: digits });
+    });
   };
 
   const onScanAgain = () => {
@@ -868,6 +913,15 @@ export default function HomeScreen() {
             }}
           >
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFDF9' }}>{t('home.scanProduct', lang)}</Text>
+          </Pressable>
+          <Pressable
+            onPress={openManualBarcodeEntry}
+            disabled={scanPipelineLoading}
+            style={{ marginTop: 14, paddingVertical: 10, alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38', textDecorationLine: 'underline' }}>
+              {t('home.enterBarcodeManually', lang)}
+            </Text>
           </Pressable>
         </View>
 
@@ -1116,6 +1170,102 @@ export default function HomeScreen() {
           </View>
         </View>
       ) : null}
+      <Modal
+        visible={manualBarcodeVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeManualBarcodeEntry}
+      >
+        <View style={{ flex: 1 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close', lang)}
+            onPress={closeManualBarcodeEntry}
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(23, 18, 12, 0.44)' }]}
+          />
+          <View
+            pointerEvents="box-none"
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              paddingHorizontal: 22,
+            }}
+          >
+            <View
+              style={{
+                borderRadius: 22,
+                backgroundColor: '#FFFDF8',
+                padding: 20,
+                width: '100%',
+                maxWidth: 400,
+                alignSelf: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 20, fontWeight: '800', color: '#1F1A16' }}>{t('home.manualBarcodeTitle', lang)}</Text>
+              <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: '#6D6053' }}>{t('home.manualBarcodeHint', lang)}</Text>
+              <TextInput
+                value={manualBarcodeValue}
+                onChangeText={(v) => {
+                  setManualBarcodeError(null);
+                  setManualBarcodeValue(digitsOnlyFromBarcodeInput(v).slice(0, 14));
+                }}
+                placeholder={t('home.manualBarcodePlaceholder', lang)}
+                placeholderTextColor="#B5A896"
+                keyboardType="number-pad"
+                autoCorrect={false}
+                autoCapitalize="none"
+                editable={!scanPipelineLoading}
+                returnKeyType="done"
+                onSubmitEditing={submitManualBarcode}
+                style={{
+                  marginTop: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: manualBarcodeError ? '#C98A7A' : '#E4D9CC',
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  fontSize: 18,
+                  fontWeight: '600',
+                  color: '#1F1A16',
+                  backgroundColor: '#FAF6EF',
+                }}
+              />
+              {manualBarcodeError ? (
+                <Text style={{ marginTop: 10, fontSize: 13, lineHeight: 18, color: '#9A4D3C', fontWeight: '600' }}>
+                  {manualBarcodeError}
+                </Text>
+              ) : null}
+              <View style={{ marginTop: 18, flexDirection: 'row', gap: 10 }}>
+                <Pressable
+                  onPress={closeManualBarcodeEntry}
+                  style={{
+                    flex: 1,
+                    borderRadius: 14,
+                    backgroundColor: '#EEE4D7',
+                    alignItems: 'center',
+                    paddingVertical: 14,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38' }}>{t('home.manualBarcodeCancel', lang)}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={submitManualBarcode}
+                  disabled={scanPipelineLoading}
+                  style={{
+                    flex: 1,
+                    borderRadius: 14,
+                    backgroundColor: scanPipelineLoading ? '#4A4238' : '#2C251F',
+                    alignItems: 'center',
+                    paddingVertical: 14,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFDF9' }}>{t('home.manualBarcodeFind', lang)}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <ScannerModal
         visible={scannerModalVisible}
         cameraInstanceKey={scannerCameraKey}

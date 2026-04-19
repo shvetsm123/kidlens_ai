@@ -244,7 +244,7 @@ function classify(
   name: string,
   lang: AppLanguage,
   prefs: AvoidPreference[],
-  childAge: number | null,
+  age: { isUnder24Months: boolean; infantStrict: boolean },
 ): { tier: IngredientTier; note: string } {
   const lower = name.toLowerCase();
   const av = avoidSet(prefs);
@@ -265,7 +265,10 @@ function classify(
     return { tier: 'red', note: t('ing.note.red.intenseSweetener', lang) };
   }
   if (SUGAR_RE.test(lower)) {
-    if (typeof childAge === 'number' && childAge < 2) {
+    if (age.isUnder24Months) {
+      if (age.infantStrict) {
+        return { tier: 'red', note: t('ing.note.red.sugarInfant', lang) };
+      }
       return { tier: 'red', note: t('ing.note.red.sugarUnder2', lang) };
     }
     return { tier: 'red', note: t('ing.note.red.addedSugar', lang) };
@@ -333,7 +336,7 @@ export function buildOffIngredientRows(
   scan: RecentScan,
   lang: AppLanguage,
   avoidPreferences: AvoidPreference[],
-  childAge: number | null,
+  age: { isUnder24Months: boolean; infantStrict: boolean },
 ): { ok: true; rows: IngredientRow[] } | { ok: false } {
   const rawJson = scan.rawJson;
   const fromArr = readIngredientsArray(rawJson);
@@ -349,7 +352,7 @@ export function buildOffIngredientRows(
   const { allergens, traces } = readAllergensTraces(scan);
 
   const rows: IngredientRow[] = names.map((name, i) => {
-    const { tier, note } = classify(name, lang, avoidPreferences, childAge);
+    const { tier, note } = classify(name, lang, avoidPreferences, age);
     return { key: `i-${i}-${name.slice(0, 24)}`, name, tier, note };
   });
 

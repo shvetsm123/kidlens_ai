@@ -47,7 +47,7 @@ export type SavedScanResult = {
   guidanceContext?: string[];
   /** Raw Open Food Facts `product` object for Supabase `raw_json`. */
   rawJson?: Record<string, unknown>;
-  /** Fingerprint of child age + avoids when this result was produced; used for reuse. */
+  /** Fingerprint of child age context (DOB or legacy years) + avoids when this result was produced; used for reuse. */
   analysisContextKey?: string;
   /** Ingredients tab: validated second AI pass output only (no raw OFF strings). */
   ingredientPanel?: IngredientAiPanel;

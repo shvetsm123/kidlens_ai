@@ -17,7 +17,7 @@ const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const MODEL = 'gpt-4o-mini';
 const LOG_PREFIX = '[OpenAI]';
 
-const SYSTEM_PROMPT = `You write the GENERAL tab of a scan result for ONE packaged food or drink for parents; childAge is in the input. The app shows ingredients separately from Open Food Facts—do not try to list every ingredient in your JSON. Output JSON ONLY. No markdown.
+const SYSTEM_PROMPT = `You write the GENERAL tab of a scan result for ONE packaged food or drink for parents. The input includes childAge (whole completed years), childAgeProfile (date-of-birth–derived: ageInMonths, ageInYears, ageDisplayLabel like "8 months" or "1 year 4 months", ageBucket, isUnder24Months), and listing fields. Prefer childAgeProfile.ageDisplayLabel and month context when isUnder24Months is true—month-level differences matter for babies. The app shows ingredients separately from Open Food Facts—do not try to list every ingredient in your JSON. Output JSON ONLY. No markdown.
 
 OUTPUT LANGUAGE (mandatory)
 - The user message includes OUTPUT_LANGUAGE. Every natural-language string in the JSON (summary, reasons, nutritionSnapshot, ingredientFlags, ingredientBreakdown, allergyNotes, whyThisMatters, parentTakeaway, guidanceContext) MUST be written entirely in that language.
@@ -43,11 +43,12 @@ DATA HONESTY
 - Use nutriments keys when present (sugars_100g, salt_100g, sodium_100g, saturated-fat_100g, energy-kcal_100g). Prefer salt_100g; if only sodium_100g, you may give sodium in mg per 100 g (convert from g).
 
 AGE + PRODUCT TYPE
-- Frame by childAge using listing support only (categories, name, ingredients, nutriments).
+- Frame by the child's age using childAgeProfile (especially ageDisplayLabel, ageInMonths, isUnder24Months) plus childAge when helpful, using listing support only (categories, name, ingredients, nutriments).
 - Infer product type only when supported (yogurt, dessert, snack, drink, cereal, etc.).
 
 BANNED PHRASING (do not use, even rephrased)
 - "Can be enjoyed in moderation", "not ideal", "age-appropriate", "in moderation", "everything in balance" style hedging.
+- Weak modal hedges used instead of a clear call: "may not be suitable", "may pose a risk", "may not provide", "might not provide", "might not be ideal"—replace with concrete listing-based wording.
 
 PREFERRED TONE (examples only—do not copy)
 - "Too sugary for a strong everyday pick."
@@ -110,13 +111,58 @@ const GENERAL_DEPTH_INSTRUCTIONS = `REQUIRED COUNTS FOR THIS REQUEST:
 - whyThisMatters: 12–320 characters, one paragraph, no numeric repeat of reasons.
 - summary: one sentence, distinct from all bullets.`;
 
+/** Appended to SYSTEM_PROMPT when `childAgeProfile.ageInMonths` is 0–11 (all text still in OUTPUT_LANGUAGE). */
+const INFANT_UNDER12_SYSTEM_SUPPLEMENT = `
+
+YOUNG BABY MODE (childAgeProfile.ageInMonths is 0–11 inclusive)
+- This is a baby under 12 months—not a toddler. Be noticeably firmer, clearer, and more decisive than for 12–23 month children, while staying 100% grounded in the listing.
+- Age bands within this mode: 0–5 completed months are the strictest (earliest milk/complementary feeding context). 6–11 completed months are still very conservative: sweetened flavored processed products, dessert-style yogurts, sodas/juice-drink positioning, and obvious snack/candy/bakery framing are especially poor fits unless the listing clearly reads as a simple, appropriate early food.
+- REASON ORDER: Put the strongest listing-backed concerns first in \`reasons\`. Typical priority (skip what does not apply; never invent):
+  (A1) Added sugar / clearly sweetened listing / sweetened flavored processed profile.
+  (A2) Dessert, sweet treat, soda/juice-drink style, snack/candy/biscuit/chocolate positioning, or a clear mismatch with “simple infant-stage food” from name/categories/ingredients.
+  (A3) Heavily engineered profile when the text supports it (e.g. several emulsifiers/stabilizers/preservatives/flavorings named—count only what appears).
+  (B) Allergen or soy/dairy complexity only when clearly in the listing.
+  (B) Category or product-type mismatch for this age.
+  Weaker points last.
+- BANNED vague hedging for this baby age: do not use (even translated equivalents of) phrases like “may not be suitable”, “may pose a risk”, “may not provide”, “might not provide”, “might not be ideal”, “not the best option” as a substitute for a clear judgment. Say what the listing shows in direct language parents can act on.
+- FORBIDDEN unsupported claims: do not say the product “does not provide necessary nutrients” or similar broad deficiency claims unless the listing makes that gap obvious (e.g. clearly a confection with no meaningful staples). Prefer safer, still-strong lines like “This reads as a flavored processed product, not a simple first-food option” when name/categories/ingredients support that.
+- SUMMARY: One sentence that states the MAIN issue (sugar / wrong product type / sweetened processed yogurt or drink / snack vs infant food)—decisive, not watery, and different from every reasons bullet.
+- whyThisMatters: One short paragraph on the practical issue for babies this young (simpler foods; early palate; unnecessary sweets; wrong product category)—no numeric repeat of reasons, no invented nutrition gaps.
+- Tone examples (translate fully to OUTPUT_LANGUAGE; do not copy verbatim): “Added sugar alone is enough to pass on this for a baby this young.” / “This is too early for a product like this.” / “This is a processed flavored product, not a simple infant food.” / “For a baby this age, this is a weak and unnecessary choice.” Stay factual—do not use “poison”/“toxic” unless the listing justifies extreme language (rare).
+- Still obey verdict rules vs ruleBasedBaseVerdict and avoid-list behavior unchanged.`;
+
+function childAgeMonthsIsUnder12(profile: KidsAiInput['childAgeProfile']): boolean {
+  const m = profile.ageInMonths;
+  return typeof m === 'number' && Number.isFinite(m) && m >= 0 && m < 12;
+}
+
+function buildGeneralSystemPrompt(input: KidsAiInput): string {
+  if (childAgeMonthsIsUnder12(input.childAgeProfile)) {
+    return `${SYSTEM_PROMPT}${INFANT_UNDER12_SYSTEM_SUPPLEMENT}`;
+  }
+  return SYSTEM_PROMPT;
+}
+
+function buildGeneralDepthInstructions(input: KidsAiInput): string {
+  if (childAgeMonthsIsUnder12(input.childAgeProfile)) {
+    return `REQUIRED COUNTS FOR THIS REQUEST (young baby under 12 months — use strict priority ordering):
+- reasons: 5 to 6 strings, each 8–200 characters, all distinct factual points. Order bullets by strength: first the clearest stop signals the listing supports (added sugar / sweetened processed / dessert or snack positioning / wrong product type for this age / visible additive stack when real), then allergen/category points, then milder points last. No second bullet that only repeats the same sugar story.
+- nutritionSnapshot: include useful per-100g lines from nutriments ONLY if those exact numbers are not already stated in reasons (avoid duplicate numbers).
+- ingredientFlags: up to 12 distinct flags when the listing supports them; [] is fine if thin.
+- ingredientBreakdown: MUST be [].
+- guidanceContext: 0–3 short strings when supportable; otherwise []. Must not repeat summary or whyThisMatters.
+- whyThisMatters: 12–320 characters, one paragraph, practical and direct for a baby under 12 months—no numeric repeat of reasons, no vague “may” hedging, no unsupported “necessary nutrients” deficiency claims.
+- summary: one sentence, dominant issue first, decisive and parent-clear, distinct from all bullets.`;
+  }
+  return GENERAL_DEPTH_INSTRUCTIONS;
+}
+
 function enrichGuidanceContext(input: KidsAiInput, evaluation: AiResult): AiResult {
   const existing = evaluation.guidanceContext?.map((s) => s.trim()).filter(Boolean) ?? [];
   if (existing.length > 0) {
     return { ...evaluation, guidanceContext: existing.slice(0, 3) };
   }
-  const age = typeof input.childAge === 'number' && Number.isFinite(input.childAge) ? input.childAge : null;
-  const filled = buildOfficialGuidanceContextLines(age, input.product.nutriments, {
+  const filled = buildOfficialGuidanceContextLines(input.childAgeProfile, input.product.nutriments, {
     productName: input.product.productName,
     brand: input.product.brand,
     ingredientsText: input.product.ingredientsText,
@@ -191,7 +237,7 @@ export async function evaluateProductWithAi(input: KidsAiInput): Promise<AiResul
         temperature: 0.25,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: buildGeneralSystemPrompt(input) },
           {
             role: 'user',
             content: `OUTPUT_LANGUAGE: ${input.outputLanguage} (${OUTPUT_LANGUAGE_NAMES[input.outputLanguage]}). Write 100% of explanatory text in ${OUTPUT_LANGUAGE_NAMES[input.outputLanguage]} only. All natural-language string values in the JSON (summary, reasons, nutritionSnapshot, ingredientFlags, ingredientBreakdown, allergyNotes, whyThisMatters, parentTakeaway, guidanceContext) MUST be in ${OUTPUT_LANGUAGE_NAMES[input.outputLanguage]}. The preferenceMatches array is the ONLY exception: it must contain ONLY exact snake_case ids copied from avoidPreferences (no translated text). Keep JSON keys in English. Keep verbatim from input: product.productName, product.brand, product.barcode. Verdict fields baseVerdict and finalVerdict must remain exactly one of: good, sometimes, avoid, unknown.
@@ -199,7 +245,7 @@ export async function evaluateProductWithAi(input: KidsAiInput): Promise<AiResul
 Evaluate this input. Reply with JSON only:
 ${JSON.stringify(input)}
 
-${GENERAL_DEPTH_INSTRUCTIONS}`,
+${buildGeneralDepthInstructions(input)}`,
           },
         ],
       }),
@@ -252,7 +298,7 @@ const ING_LOG = '[OpenAI][Ingredients]';
 const INGREDIENTS_SYSTEM_PROMPT = `You are the Ingredients tab writer for parents. Input JSON includes:
 - cleanedIngredientLines: ordered REAL ingredient tokens from Open Food Facts ONLY (already cleaned—no nutrition blocks, no importer lines). These may be in Bulgarian or other languages—they are SOURCE DATA ONLY.
 - additivesTags, allergensDeclared, traceDeclared: context only—do not invent extra rows.
-- avoidPreferenceIds, childAge, outputLanguage, localeHint (device locale when present).
+- avoidPreferenceIds, childAge, childAgeMonths, ageDisplayLabel, ageBucket, outputLanguage, localeHint (device locale when present).
 
 Output EXACTLY this JSON shape (keys spelled exactly: good, neutral, redFlags):
 {

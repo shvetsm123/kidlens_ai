@@ -1,9 +1,10 @@
 import type { RecentScan } from '../types/scan';
 import type { ResultStyle } from '../types/preferences';
 import type { AppLanguage } from './deviceLanguage';
+import type { ChildAgeProfile } from './childAgeContext';
+import { childAgeProfileFromScanAnalysisKey } from './childAgeContext';
 import { t } from './i18n';
 import { listingSuggestsAddedOrClearSweetening } from './productRules';
-import { parseChildAgeFromAnalysisContextKey } from './scanAnalysisContext';
 
 const NHS_FREE_SUGAR_G_DAY: ReadonlyArray<{ minAge: number; maxAge: number; grams: number }> = [
   { minAge: 2, maxAge: 3, grams: 14 },
@@ -57,7 +58,7 @@ export type OfficialGuidanceProductFields = Pick<
  * Short, parent-facing lines tied to listing data only (no invented numbers).
  */
 export function buildOfficialGuidanceContextLines(
-  childAge: number | null,
+  profile: ChildAgeProfile,
   nutriments: Record<string, number> | undefined,
   product: OfficialGuidanceProductFields,
   lang: AppLanguage,
@@ -73,16 +74,23 @@ export function buildOfficialGuidanceContextLines(
   const listingSweet = listingSuggestsAddedOrClearSweetening(product);
   const lines: string[] = [];
 
-  if (childAge != null && childAge < 2) {
-    const numericSweetEvidence = sugars != null && sugars >= 8;
+  if (profile.isUnder24Months) {
+    const strictSugarCutoff =
+      profile.ageInMonths != null && profile.ageInMonths <= 5
+        ? 5
+        : profile.ageInMonths != null && profile.ageInMonths < 12
+          ? 7
+          : 8;
+    const numericSweetEvidence = sugars != null && sugars >= strictSugarCutoff;
     if (listingSweet || numericSweetEvidence) {
       lines.push(t('guidance.under2', lang));
     }
   }
 
-  if (childAge != null && childAge >= 2 && childAge <= 10 && sugars != null && sugars > 0) {
-    const cap = nhsFreeSugarGuidanceGrams(childAge);
-    const label = ageBandLabel(childAge);
+  const guidanceYears = profile.completedWholeYears;
+  if (guidanceYears >= 2 && guidanceYears <= 10 && sugars != null && sugars > 0) {
+    const cap = nhsFreeSugarGuidanceGrams(guidanceYears);
+    const label = ageBandLabel(guidanceYears);
     if (cap != null && label != null) {
       const ratio = sugars / cap;
       if (ratio >= 0.85) {
@@ -105,7 +113,7 @@ export function buildOfficialGuidanceContextLines(
     }
   }
 
-  if (childAge != null && childAge <= 10) {
+  if (guidanceYears <= 10) {
     const salt = saltGPer100g(nutriments);
     if (salt != null && salt >= 1.2) {
       lines.push(t('guidance.salt', lang));
@@ -116,8 +124,8 @@ export function buildOfficialGuidanceContextLines(
 }
 
 export function buildOfficialGuidanceContextLinesFromScan(scan: RecentScan, lang: AppLanguage): string[] {
-  const childAge = parseChildAgeFromAnalysisContextKey(scan.analysisContextKey);
-  return buildOfficialGuidanceContextLines(childAge, scan.nutriments, scan, lang);
+  const profile = childAgeProfileFromScanAnalysisKey(scan.analysisContextKey);
+  return buildOfficialGuidanceContextLines(profile, scan.nutriments, scan, lang);
 }
 
 export function resolvedGuidanceContextLines(mode: ResultStyle, scan: RecentScan, lang: AppLanguage): string[] {

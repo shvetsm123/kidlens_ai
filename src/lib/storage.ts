@@ -12,11 +12,13 @@ import {
 } from '../api/supabase';
 import { parseStoredRecentScan } from './parseStoredRecentScan';
 import { DEVICE_ID_STORAGE_KEY, getOrCreateDeviceId } from './device';
+import { isValidIsoDateOnly, resolveChildAgeProfile, type ChildAgeProfile } from './childAgeContext';
 import { AVOID_PREFERENCE_IDS, type AvoidPreference, type Plan, type ResultStyle } from '../types/preferences';
 import type { RecentScan } from '../types/scan';
 
 const ONBOARDING_COMPLETED_KEY = 'onboardingCompleted';
 const CHILD_AGE_KEY = 'childAge';
+const CHILD_BIRTHDATE_KEY = 'childBirthdate';
 const IS_PREMIUM_KEY = 'isPremium';
 const PLAN_KEY = 'plan_v1';
 const DAILY_SUCCESSFUL_SCANS_KEY = 'dailySuccessfulScans_v1';
@@ -90,13 +92,32 @@ async function readRawResultStyleString(): Promise<string | null> {
 
 async function readLocalPreferencePayloadForRemote(): Promise<{
   child_age: number | null;
+  child_birthdate: string | null;
   result_style: string;
   avoid_preferences: AvoidPreference[];
 }> {
-  const child_age = await getChildAge();
-  const result_style = (await readRawResultStyleString()) ?? 'quick';
-  const avoid_preferences = await getAvoidPreferences();
-  return { child_age, result_style, avoid_preferences };
+  const [bdRaw, result_style, avoid_preferences] = await Promise.all([
+    AsyncStorage.getItem(CHILD_BIRTHDATE_KEY),
+    readRawResultStyleString(),
+    getAvoidPreferences(),
+  ]);
+  const child_birthdate = bdRaw && isValidIsoDateOnly(bdRaw) ? bdRaw.trim() : null;
+  const legacyRaw = await AsyncStorage.getItem(CHILD_AGE_KEY);
+  let legacyAge: number | null = null;
+  if (legacyRaw) {
+    const n = Number(legacyRaw);
+    if (Number.isFinite(n)) {
+      legacyAge = Math.round(n);
+    }
+  }
+  const child_age =
+    child_birthdate != null ? resolveChildAgeProfile(child_birthdate, null).completedWholeYears : legacyAge;
+  return {
+    child_age,
+    child_birthdate,
+    result_style: result_style ?? 'quick',
+    avoid_preferences,
+  };
 }
 
 function mapRemoteResultStyleToken(raw: unknown): ResultStyle | null {
@@ -109,11 +130,17 @@ function mapRemoteResultStyleToken(raw: unknown): ResultStyle | null {
 async function applyRemotePreferencesRowToLocal(row: DbPreferencesRow): Promise<void> {
   console.warn('[prefsDebug][storage] applyRemotePreferencesRowToLocal', {
     child_age: row.child_age,
+    child_birthdate: row.child_birthdate,
     result_style: row.result_style,
     avoid_preferences: row.avoid_preferences,
     updated_at: row.updated_at,
   });
-  if (row.child_age != null && Number.isFinite(Number(row.child_age))) {
+  const remoteBd = typeof row.child_birthdate === 'string' && isValidIsoDateOnly(row.child_birthdate) ? row.child_birthdate.trim() : null;
+  if (remoteBd) {
+    await setChildBirthdate(remoteBd);
+    const p = resolveChildAgeProfile(remoteBd, null);
+    await setChildAge(p.completedWholeYears);
+  } else if (row.child_age != null && Number.isFinite(Number(row.child_age))) {
     await setChildAge(Math.round(Number(row.child_age)));
   }
   const mappedStyle = mapRemoteResultStyleToken(row.result_style);
@@ -182,6 +209,7 @@ export async function syncRemotePreferencesWithLocal(): Promise<void> {
       remotePreview: remote
         ? {
             child_age: remote.child_age,
+            child_birthdate: remote.child_birthdate,
             result_style: remote.result_style,
             avoidLen: Array.isArray(remote.avoid_preferences) ? remote.avoid_preferences.length : -1,
             updated_at: remote.updated_at,
@@ -202,6 +230,7 @@ export async function syncRemotePreferencesWithLocal(): Promise<void> {
       await upsertPreferencesForProfile(client, {
         profile_id: profileId,
         child_age: local.child_age,
+        child_birthdate: local.child_birthdate,
         result_style: local.result_style,
         avoid_preferences: local.avoid_preferences,
       });
@@ -239,6 +268,7 @@ export async function pushSupabasePreferencesFromLocal(): Promise<void> {
     await upsertPreferencesForProfile(client, {
       profile_id: profileId,
       child_age: local.child_age,
+      child_birthdate: local.child_birthdate,
       result_style: local.result_style,
       avoid_preferences: local.avoid_preferences,
     });
@@ -270,7 +300,55 @@ export const setOnboardingCompleted = async (value: boolean): Promise<void> => {
   await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, value ? 'true' : 'false');
 };
 
+export const getChildBirthdate = async (): Promise<string | null> => {
+  const value = await AsyncStorage.getItem(CHILD_BIRTHDATE_KEY);
+  if (!value || !isValidIsoDateOnly(value)) {
+    return null;
+  }
+  return value.trim();
+};
+
+export const setChildBirthdate = async (isoDate: string | null): Promise<void> => {
+  if (isoDate == null || isoDate.trim() === '') {
+    await AsyncStorage.removeItem(CHILD_BIRTHDATE_KEY);
+    return;
+  }
+  await AsyncStorage.setItem(CHILD_BIRTHDATE_KEY, isoDate.trim());
+};
+
+/** Resolved profile (birthdate-first, else legacy integer age, else default for analysis). */
+export const getChildAgeProfile = async (ref = new Date()): Promise<ChildAgeProfile> => {
+  const [bd, legacyRaw] = await Promise.all([getChildBirthdate(), AsyncStorage.getItem(CHILD_AGE_KEY)]);
+  let legacy: number | null = null;
+  if (legacyRaw) {
+    const n = Number(legacyRaw);
+    if (Number.isFinite(n)) {
+      legacy = Math.round(n);
+    }
+  }
+  return resolveChildAgeProfile(bd, legacy, ref);
+};
+
+export async function hasChildAgePreferenceConfigured(): Promise<boolean> {
+  const bd = await getChildBirthdate();
+  if (bd) {
+    return true;
+  }
+  const value = await AsyncStorage.getItem(CHILD_AGE_KEY);
+  if (!value) {
+    return false;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed);
+}
+
 export const getChildAge = async (): Promise<number | null> => {
+  const bd = await getChildBirthdate();
+  if (bd) {
+    const p = resolveChildAgeProfile(bd, null);
+    console.warn('[prefsDebug][storage] getChildAge from birthdate', { birthdate: bd, completedWholeYears: p.completedWholeYears });
+    return p.completedWholeYears;
+  }
   const value = await AsyncStorage.getItem(CHILD_AGE_KEY);
   if (!value) {
     console.warn('[prefsDebug][storage] getChildAge read', { raw: value, parsed: null });
@@ -577,7 +655,7 @@ export async function getCachedSupabaseProfileId(): Promise<string | null> {
   return trimmed && trimmed.length > 0 ? trimmed : null;
 }
 
-export async function tryPersistSuccessfulScanToSupabase(scan: RecentScan, childAge: number | null): Promise<void> {
+export async function tryPersistSuccessfulScanToSupabase(scan: RecentScan, childAgeProfile: ChildAgeProfile): Promise<void> {
   if (!isSupabaseConfigured()) {
     return;
   }
@@ -590,7 +668,7 @@ export async function tryPersistSuccessfulScanToSupabase(scan: RecentScan, child
     return;
   }
   try {
-    await persistSuccessfulScanHistory(client, profileId, scan, childAge);
+    await persistSuccessfulScanHistory(client, profileId, scan, childAgeProfile);
   } catch (err) {
     console.warn('[storage] tryPersistSuccessfulScanToSupabase', err);
   }
@@ -599,6 +677,7 @@ export async function tryPersistSuccessfulScanToSupabase(scan: RecentScan, child
 const DEV_RESET_KEYS = [
   ONBOARDING_COMPLETED_KEY,
   CHILD_AGE_KEY,
+  CHILD_BIRTHDATE_KEY,
   IS_PREMIUM_KEY,
   PLAN_KEY,
   DAILY_SUCCESSFUL_SCANS_KEY,

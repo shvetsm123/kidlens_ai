@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 
 import {
   ensureSupabaseProfileLocal,
-  getChildAge,
   getOnboardingCompleted,
+  hasChildAgePreferenceConfigured,
   syncRemotePreferencesWithLocal,
 } from '../src/lib/storage';
 
@@ -20,14 +20,14 @@ export default function IndexScreen() {
       await syncRemotePreferencesWithLocal();
 
       const onboardingCompleted = await getOnboardingCompleted();
-      const childAge = await getChildAge();
+      const hasChildPrefs = await hasChildAgePreferenceConfigured();
 
       if (!onboardingCompleted) {
         setDestination('/onboarding');
         return;
       }
 
-      if (childAge === null) {
+      if (!hasChildPrefs) {
         setDestination('/age');
         return;
       }

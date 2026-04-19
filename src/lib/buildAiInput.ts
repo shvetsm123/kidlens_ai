@@ -3,22 +3,22 @@ import type { AppLanguage } from './deviceLanguage';
 import type { AvoidPreference, ResultStyle } from '../types/preferences';
 import type { KidsAiInput } from '../types/ai';
 import type { Verdict } from '../types/scan';
-
-const DEFAULT_CHILD_AGE = 4;
+import type { ChildAgeProfile } from './childAgeContext';
 
 export function buildAiInput(
-  childAge: number | null,
+  profile: ChildAgeProfile,
   product: NormalizedProduct,
   avoidPreferences: AvoidPreference[],
   resultStyle: ResultStyle,
   ruleBasedBaseVerdict: Verdict,
   outputLanguage: AppLanguage,
 ): KidsAiInput {
-  const age = typeof childAge === 'number' && Number.isFinite(childAge) ? childAge : DEFAULT_CHILD_AGE;
+  const age = profile.completedWholeYears;
 
   const base: KidsAiInput = {
     mode: 'kids',
     childAge: age,
+    childAgeProfile: profile,
     ruleBasedBaseVerdict,
     resultStyle,
     outputLanguage,

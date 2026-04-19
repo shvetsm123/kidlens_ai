@@ -3,12 +3,13 @@ import * as Localization from 'expo-localization';
 import { evaluateIngredientsWithAi, evaluateProductWithAi } from '../api/openai';
 import { getProductByBarcode } from '../api/openFoodFacts';
 import { buildAiInput } from './buildAiInput';
+import { serializeChildAgePreferenceForContext } from './childAgeContext';
 import { getAppLanguage } from './deviceLanguage';
 import { t } from './i18n';
 import { extractCleanOffComposition } from './offCompositionClean';
-import { computeRuleBasedBaseVerdict } from './productRules';
+import { computeRuleBasedBaseVerdict, productRulesChildInputFromProfile } from './productRules';
 import { buildScanAnalysisContextKey } from './scanAnalysisContext';
-import { getAvoidPreferences, getChildAge } from './storage';
+import { getAvoidPreferences, getChildAgeProfile } from './storage';
 import type { RecentScan } from '../types/scan';
 
 export type BuildRecentScanOutcome = {
@@ -50,15 +51,15 @@ export function createFallbackRecentScan(barcode: string, _childAge: number | nu
 export async function buildRecentScanFromBarcode(barcode: string): Promise<BuildRecentScanOutcome> {
   const lang = getAppLanguage();
   try {
-    const [childAge, avoidPreferences] = await Promise.all([getChildAge(), getAvoidPreferences()]);
+    const [profile, avoidPreferences] = await Promise.all([getChildAgeProfile(), getAvoidPreferences()]);
     const product = await getProductByBarcode(barcode);
     if (!product) {
-      return { scan: createFallbackRecentScan(barcode, childAge, lang), isSuccessfulProductScan: false };
+      return { scan: createFallbackRecentScan(barcode, profile.completedWholeYears, lang), isSuccessfulProductScan: false };
     }
 
-    const age = typeof childAge === 'number' && Number.isFinite(childAge) ? childAge : 4;
-    const ruleBasedBaseVerdict = computeRuleBasedBaseVerdict(age, product);
-    const aiInput = buildAiInput(childAge, product, avoidPreferences, 'advanced', ruleBasedBaseVerdict, lang);
+    const rulesInput = productRulesChildInputFromProfile(profile);
+    const ruleBasedBaseVerdict = computeRuleBasedBaseVerdict(rulesInput, product);
+    const aiInput = buildAiInput(profile, product, avoidPreferences, 'advanced', ruleBasedBaseVerdict, lang);
     console.warn('[prefs][scan]', 'avoid list used for analysis', avoidPreferences);
     const ai = await evaluateProductWithAi(aiInput);
     console.warn('[prefs][scan]', 'preferenceMatches returned from analysis', ai.preferenceMatches);
@@ -81,7 +82,10 @@ export async function buildRecentScanFromBarcode(barcode: string): Promise<Build
       const panel = await evaluateIngredientsWithAi({
         outputLanguage: lang,
         localeHint,
-        childAge: age,
+        childAge: profile.completedWholeYears,
+        childAgeMonths: profile.ageInMonths,
+        ageDisplayLabel: profile.ageDisplayLabel,
+        ageBucket: profile.ageBucket,
         avoidPreferenceIds: avoidPreferences,
         cleanedIngredientLines: cleaned.ingredientLines,
         additivesTags: cleaned.additivesTags,
@@ -133,7 +137,11 @@ export async function buildRecentScanFromBarcode(barcode: string): Promise<Build
       scan.preferenceMatches = ai.preferenceMatches;
     }
 
-    scan.analysisContextKey = buildScanAnalysisContextKey(scan.barcode, childAge, avoidPreferences);
+    scan.analysisContextKey = buildScanAnalysisContextKey(
+      scan.barcode,
+      serializeChildAgePreferenceForContext(profile),
+      avoidPreferences,
+    );
 
     console.warn('[prefs][scan]', 'preferenceMatches stored on scan object', {
       scanId: scan.id,
@@ -142,7 +150,7 @@ export async function buildRecentScanFromBarcode(barcode: string): Promise<Build
 
     return { scan, isSuccessfulProductScan: true };
   } catch {
-    const childAge = await getChildAge();
-    return { scan: createFallbackRecentScan(barcode, childAge, lang), isSuccessfulProductScan: false };
+    const profile = await getChildAgeProfile();
+    return { scan: createFallbackRecentScan(barcode, profile.completedWholeYears, lang), isSuccessfulProductScan: false };
   }
 }

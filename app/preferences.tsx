@@ -1,39 +1,65 @@
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import {
+  formatLocalDateToIso,
+  parseBirthdateToLocalNoon,
+  resolveChildAgeProfile,
+} from '../src/lib/childAgeContext';
 import { avoidLabel, getAppLanguage, t } from '../src/lib/i18n';
 import {
   getAvoidPreferences,
   getChildAge,
+  getChildBirthdate,
   pushSupabasePreferencesFromLocal,
   setAvoidPreferences,
   setChildAge,
+  setChildBirthdate,
 } from '../src/lib/storage';
 import { AVOID_PREFERENCE_OPTIONS, type AvoidPreference } from '../src/types/preferences';
 
-const MIN_AGE = 1;
-const MAX_AGE = 16;
-const DEFAULT_AGE = 4;
+function defaultDobDate(): Date {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 2);
+  return d;
+}
+
+function minDobDate(): Date {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 16);
+  return d;
+}
 
 export default function PreferencesScreen() {
   const lang = getAppLanguage();
   const [ready, setReady] = useState(false);
-  const [age, setAge] = useState(DEFAULT_AGE);
+  const [dob, setDob] = useState(defaultDobDate);
+  const [iosPickerOpen, setIosPickerOpen] = useState(false);
   const [avoidList, setAvoidList] = useState<AvoidPreference[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const profilePreview = useMemo(() => resolveChildAgeProfile(formatLocalDateToIso(dob), null), [dob]);
+
   const load = useCallback(async () => {
-    const [storedAge, avoids] = await Promise.all([getChildAge(), getAvoidPreferences()]);
-    if (storedAge !== null) {
-      setAge(Math.min(MAX_AGE, Math.max(MIN_AGE, storedAge)));
-    } else {
-      setAge(DEFAULT_AGE);
+    const [storedBd, storedLegacy, avoids] = await Promise.all([getChildBirthdate(), getChildAge(), getAvoidPreferences()]);
+    let next = defaultDobDate();
+    if (storedBd) {
+      const parsed = parseBirthdateToLocalNoon(storedBd);
+      if (parsed) {
+        next = parsed;
+      }
+    } else if (storedLegacy != null && Number.isFinite(storedLegacy)) {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() - Math.min(16, Math.max(0, Math.round(storedLegacy))));
+      next = d;
     }
+    setDob(next);
     setAvoidList(avoids);
-    console.warn('[planDebug][preferences] load', { storedAge, avoids });
+    console.warn('[planDebug][preferences] load', { storedBd: !!storedBd, storedLegacy, avoids });
     setReady(true);
   }, []);
 
@@ -43,8 +69,22 @@ export default function PreferencesScreen() {
     }, [load]),
   );
 
-  const bumpAge = (delta: number) => {
-    setAge((a) => Math.min(MAX_AGE, Math.max(MIN_AGE, a + delta)));
+  const openPicker = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: dob,
+        onChange: (_e, date) => {
+          if (date) {
+            setDob(date);
+          }
+        },
+        mode: 'date',
+        maximumDate: new Date(),
+        minimumDate: minDobDate(),
+      });
+      return;
+    }
+    setIosPickerOpen(true);
   };
 
   const toggleAvoid = (id: AvoidPreference) => {
@@ -54,25 +94,19 @@ export default function PreferencesScreen() {
   const onSave = async () => {
     setSaving(true);
     try {
-      console.warn('[prefsDebug] onSave before', { age, avoidList });
-      await setChildAge(age);
-      console.warn('[prefsDebug] onSave after setChildAge', { getChildAge: await getChildAge() });
+      const iso = formatLocalDateToIso(dob);
+      const ref = new Date();
+      const parsedIso = parseBirthdateToLocalNoon(iso);
+      if (!parsedIso || parsedIso.getTime() > ref.getTime()) {
+        return;
+      }
+      console.warn('[prefsDebug] onSave before', { iso, avoidList });
+      await setChildBirthdate(iso);
+      const p = resolveChildAgeProfile(iso, null, ref);
+      await setChildAge(p.completedWholeYears);
       await setAvoidPreferences(avoidList);
-      console.warn('[prefsDebug] onSave after setAvoidPreferences', {
-        getAvoidPreferences: await getAvoidPreferences(),
-      });
-      const savedAge = await getChildAge();
-      const savedAvoids = await getAvoidPreferences();
-      console.warn('[prefsDebug] onSave after writes', {
-        savedAge,
-        savedAvoids,
-      });
       await pushSupabasePreferencesFromLocal();
       console.warn('[prefsDebug] onSave after pushSupabasePreferencesFromLocal', 'push completed');
-      console.warn('[prefsDebug] onSave before router.back', {
-        getChildAge: await getChildAge(),
-        getAvoidPreferences: await getAvoidPreferences(),
-      });
       router.back();
     } finally {
       setSaving(false);
@@ -144,18 +178,16 @@ export default function PreferencesScreen() {
         </Text>
 
         <View style={{ marginTop: 28 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{t('prefs.childAge', lang)}</Text>
-          <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: '#7A6E61' }}>{t('prefs.childAgeHelp', lang)}</Text>
-          <View
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{t('prefs.childBirthdate', lang)}</Text>
+          <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: '#7A6E61' }}>{t('prefs.childBirthdateHelp', lang)}</Text>
+          <Pressable
+            onPress={openPicker}
             style={{
               marginTop: 14,
               backgroundColor: '#FFFDF8',
               borderRadius: 20,
               paddingVertical: 18,
               paddingHorizontal: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
               borderWidth: 1,
               borderColor: '#E8DFD4',
               shadowColor: '#9B8D7A',
@@ -165,37 +197,46 @@ export default function PreferencesScreen() {
               elevation: 2,
             }}
           >
-            <Pressable
-              onPress={() => bumpAge(-1)}
-              disabled={age <= MIN_AGE}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 14,
-                backgroundColor: age <= MIN_AGE ? '#EFE8DF' : '#EDE6DD',
-                alignItems: 'center',
-                justifyContent: 'center',
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{formatLocalDateToIso(dob)}</Text>
+            <Text style={{ marginTop: 6, fontSize: 14, color: '#7A6E61' }}>{t('age.tapToChange', lang)}</Text>
+            <Text style={{ marginTop: 10, fontSize: 14, color: '#5F554A', lineHeight: 20 }}>
+              {t('prefs.childAgeNow', lang, { label: profilePreview.ageDisplayLabel })}
+            </Text>
+          </Pressable>
+        </View>
+
+        {iosPickerOpen && Platform.OS === 'ios' ? (
+          <View
+            style={{
+              marginTop: 16,
+              backgroundColor: '#FFFDF8',
+              borderRadius: 16,
+              paddingBottom: 8,
+              borderWidth: 1,
+              borderColor: '#E8DFD4',
+            }}
+          >
+            <DateTimePicker
+              value={dob}
+              mode="date"
+              display="spinner"
+              themeVariant="light"
+              onChange={(_e, date) => {
+                if (date) {
+                  setDob(date);
+                }
               }}
-            >
-              <Text style={{ fontSize: 24, fontWeight: '700', color: age <= MIN_AGE ? '#C4B8A8' : '#2C251F' }}>−</Text>
-            </Pressable>
-            <Text style={{ fontSize: 32, fontWeight: '700', color: '#1F1A16' }}>{age}</Text>
+              maximumDate={new Date()}
+              minimumDate={minDobDate()}
+            />
             <Pressable
-              onPress={() => bumpAge(1)}
-              disabled={age >= MAX_AGE}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 14,
-                backgroundColor: age >= MAX_AGE ? '#EFE8DF' : '#EDE6DD',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              onPress={() => setIosPickerOpen(false)}
+              style={{ alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 20 }}
             >
-              <Text style={{ fontSize: 24, fontWeight: '700', color: age >= MAX_AGE ? '#C4B8A8' : '#2C251F' }}>+</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#2C251F' }}>{t('age.datePickerDone', lang)}</Text>
             </Pressable>
           </View>
-        </View>
+        ) : null}
 
         <View style={{ marginTop: 32 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{t('prefs.avoidList', lang)}</Text>
