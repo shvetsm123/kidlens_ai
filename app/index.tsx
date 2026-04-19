@@ -2,14 +2,9 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useEffect, useState } from 'react';
 
-import {
-  ensureSupabaseProfileLocal,
-  getOnboardingCompleted,
-  hasChildAgePreferenceConfigured,
-  syncRemotePreferencesWithLocal,
-} from '../src/lib/storage';
+import { ensureSupabaseProfileLocal, getChildBirthdate, syncRemotePreferencesWithLocal } from '../src/lib/storage';
 
-type Destination = '/onboarding' | '/age' | '/home';
+type Destination = '/onboarding' | '/home';
 
 export default function IndexScreen() {
   const [destination, setDestination] = useState<Destination | null>(null);
@@ -19,16 +14,9 @@ export default function IndexScreen() {
       await ensureSupabaseProfileLocal();
       await syncRemotePreferencesWithLocal();
 
-      const onboardingCompleted = await getOnboardingCompleted();
-      const hasChildPrefs = await hasChildAgePreferenceConfigured();
-
-      if (!onboardingCompleted) {
+      const childBirthdate = await getChildBirthdate();
+      if (!childBirthdate) {
         setDestination('/onboarding');
-        return;
-      }
-
-      if (!hasChildPrefs) {
-        setDestination('/age');
         return;
       }
 

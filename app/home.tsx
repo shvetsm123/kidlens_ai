@@ -161,6 +161,8 @@ export default function HomeScreen() {
   const expectingScannerDismissHandoffRef = useRef(false);
   const scannerDismissedForHandoffRef = useRef(false);
   const scannerModalVisibleRef = useRef(false);
+  /** After a manual barcode submit, "Scan again" should reopen the manual modal, not the camera. */
+  const preferManualRescanRef = useRef(false);
   const hydrateLockRef = useRef(false);
   const hydrateAgainRef = useRef(false);
   resultModalVisibleRef.current = resultModalVisible;
@@ -488,6 +490,7 @@ export default function HomeScreen() {
       navigatePaywall({ preselect: 'unlimited' });
       return;
     }
+    preferManualRescanRef.current = false;
     await waitUntilPreferencesSyncIdle();
     if (scanPipelineLoadingRef.current || isProcessingScanRef.current) {
       return;
@@ -719,6 +722,7 @@ export default function HomeScreen() {
     setManualBarcodeVisible(false);
     Keyboard.dismiss();
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    preferManualRescanRef.current = true;
     queueMicrotask(() => {
       void handleBarcodeScanned({ data: digits });
     });
@@ -739,6 +743,10 @@ export default function HomeScreen() {
     setModalProductId(null);
     setModalFavorited(false);
     setFavoriteActionBusy(false);
+    if (preferManualRescanRef.current) {
+      void openManualBarcodeEntry();
+      return;
+    }
     setScannerCameraKey((k) => k + 1);
     setScannerModalVisible(true);
   };
@@ -956,14 +964,50 @@ export default function HomeScreen() {
           >
             <Text style={{ fontSize: 16, fontWeight: '700', color: M.cream }}>{t('home.scanProduct', lang)}</Text>
           </Pressable>
+
+          <View style={{ marginTop: 18, alignItems: 'center' }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '700',
+                color: M.textSoft,
+                letterSpacing: 2,
+              }}
+            >
+              {t('home.or', lang)}
+            </Text>
+          </View>
+
           <Pressable
             onPress={openManualBarcodeEntry}
             disabled={scanPipelineLoading}
-            style={{ marginTop: 14, paddingVertical: 10, alignItems: 'center' }}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.enterBarcodeManually', lang)}
+            style={({ pressed }) => ({
+              marginTop: 12,
+              opacity: scanPipelineLoading ? 0.55 : pressed ? 0.92 : 1,
+            })}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody, textDecorationLine: 'underline' }}>
-              {t('home.enterBarcodeManually', lang)}
-            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                borderRadius: M.r16,
+                backgroundColor: M.bgChip,
+                borderWidth: 1,
+                borderColor: M.line,
+                gap: 12,
+                ...M.shadowSoft,
+              }}
+            >
+              <Ionicons name="barcode-outline" size={22} color={M.sage} />
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: M.textBody }} numberOfLines={1}>
+                {t('home.enterBarcodeManually', lang)}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={M.textSoft} />
+            </View>
           </Pressable>
         </View>
 
