@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { M } from '../constants/mamaTheme';
 import { getAppLanguage, t } from '../src/lib/i18n';
 import { getPlan, getResultStyle, setPlan } from '../src/lib/storage';
 import type { Plan } from '../src/types/preferences';
@@ -88,7 +89,7 @@ export default function PaywallScreen() {
   const unlimitedSelected = selectedPlan === 'unlimited';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F6F1E8' }} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: M.bgPage }} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={{
@@ -110,51 +111,47 @@ export default function PaywallScreen() {
             marginBottom: 8,
           }}
         >
-          <Text style={{ fontSize: 17, color: '#6D6053', fontWeight: '700', marginRight: 6 }}>←</Text>
-          <Text style={{ fontSize: 16, color: '#6D6053', fontWeight: '600' }}>{t('common.back', lang)}</Text>
+          <Text style={{ fontSize: 17, color: M.textMuted, fontWeight: '700', marginRight: 6 }}>←</Text>
+          <Text style={{ fontSize: 16, color: M.textMuted, fontWeight: '600' }}>{t('common.back', lang)}</Text>
         </Pressable>
 
-        <Text style={{ fontSize: 30, lineHeight: 36, color: '#1F1A16', fontWeight: '700' }}>{t('pay.title', lang)}</Text>
-        <Text style={{ marginTop: 10, fontSize: 16, lineHeight: 24, color: '#5F554A' }}>{t('pay.subtitle', lang)}</Text>
+        <Text style={{ fontSize: 30, lineHeight: 36, color: M.text, fontWeight: '700' }}>{t('pay.title', lang)}</Text>
+        <Text style={{ marginTop: 10, fontSize: 16, lineHeight: 24, color: M.textBody }}>{t('pay.subtitle', lang)}</Text>
 
         <View
           style={{
             marginTop: 20,
             paddingVertical: 14,
             paddingHorizontal: 16,
-            borderRadius: 16,
-            backgroundColor: '#E8EFE8',
+            borderRadius: M.r16,
+            backgroundColor: M.sageWash,
             borderWidth: 1,
-            borderColor: '#C5D4C5',
+            borderColor: M.lineSage,
           }}
         >
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#3D5A40' }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: M.sageDeep }}>
             {t('pay.current', lang)}{' '}
             {currentPlan === 'free' ? t('pay.planFree', lang) : t('pay.planUnlimited', lang)}
           </Text>
-          <Text style={{ marginTop: 6, fontSize: 13, color: '#5A6B5A', lineHeight: 18 }}>{t('pay.switchHint', lang)}</Text>
+          <Text style={{ marginTop: 6, fontSize: 13, color: M.sage, lineHeight: 18 }}>{t('pay.switchHint', lang)}</Text>
         </View>
 
         <View style={{ marginTop: 24, gap: 14 }}>
           <Pressable
             onPress={() => setSelectedPlan('free')}
             style={{
-              backgroundColor: '#FFFDF8',
-              borderRadius: 22,
+              backgroundColor: M.bgCard,
+              borderRadius: M.r22,
               padding: 20,
               borderWidth: 2,
-              borderColor: freeSelected ? '#C9A06E' : '#E8DFD4',
-              shadowColor: '#9B8D7A',
-              shadowOpacity: freeSelected ? 0.14 : 0.06,
-              shadowRadius: 16,
-              shadowOffset: { width: 0, height: 6 },
-              elevation: freeSelected ? 4 : 1,
+              borderColor: freeSelected ? M.gold : M.line,
+              ...(freeSelected ? M.shadowCard : { ...M.shadowSoft, shadowOpacity: 0.06, elevation: 1 }),
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: '#1F1A16' }}>{t('pay.free.title', lang)}</Text>
-                <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: '#6D6053' }}>{t('pay.free.sub', lang)}</Text>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: M.text }}>{t('pay.free.title', lang)}</Text>
+                <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: M.textMuted }}>{t('pay.free.sub', lang)}</Text>
               </View>
               {currentPlan === 'free' ? (
                 <View
@@ -162,16 +159,16 @@ export default function PaywallScreen() {
                     paddingHorizontal: 10,
                     paddingVertical: 5,
                     borderRadius: 999,
-                    backgroundColor: '#E8EFE8',
+                    backgroundColor: M.sageWash,
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#3D5A40' }}>{t('pay.badge.current', lang)}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: M.sageDeep }}>{t('pay.badge.current', lang)}</Text>
                 </View>
               ) : null}
             </View>
             <View style={{ marginTop: 16, gap: 8 }}>
               {freeFeatures.map((f) => (
-                <Text key={f} style={{ fontSize: 15, lineHeight: 22, color: '#4F453B', fontWeight: '600' }}>
+                <Text key={f} style={{ fontSize: 15, lineHeight: 22, color: M.textBody, fontWeight: '600' }}>
                   • {f}
                 </Text>
               ))}
@@ -181,22 +178,18 @@ export default function PaywallScreen() {
           <Pressable
             onPress={() => setSelectedPlan('unlimited')}
             style={{
-              backgroundColor: '#FFFDF8',
-              borderRadius: 22,
+              backgroundColor: M.bgCard,
+              borderRadius: M.r22,
               padding: 20,
               borderWidth: 2,
-              borderColor: unlimitedSelected ? '#C9A06E' : '#E8DFD4',
-              shadowColor: '#9B8D7A',
-              shadowOpacity: unlimitedSelected ? 0.14 : 0.06,
-              shadowRadius: 16,
-              shadowOffset: { width: 0, height: 6 },
-              elevation: unlimitedSelected ? 4 : 1,
+              borderColor: unlimitedSelected ? M.gold : M.line,
+              ...(unlimitedSelected ? M.shadowCard : { ...M.shadowSoft, shadowOpacity: 0.06, elevation: 1 }),
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: '#1F1A16' }}>{t('pay.unlimited.title', lang)}</Text>
-                <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: '#6D6053' }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: M.text }}>{t('pay.unlimited.title', lang)}</Text>
+                <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: M.textMuted }}>
                   {t('pay.unlimited.sub', lang)}
                 </Text>
               </View>
@@ -206,16 +199,16 @@ export default function PaywallScreen() {
                     paddingHorizontal: 10,
                     paddingVertical: 5,
                     borderRadius: 999,
-                    backgroundColor: '#E8EFE8',
+                    backgroundColor: M.sageWash,
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#3D5A40' }}>{t('pay.badge.current', lang)}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: M.sageDeep }}>{t('pay.badge.current', lang)}</Text>
                 </View>
               ) : null}
             </View>
             <View style={{ marginTop: 16, gap: 8 }}>
               {unlimitedFeatures.map((f) => (
-                <Text key={f} style={{ fontSize: 15, lineHeight: 22, color: '#4F453B', fontWeight: '600' }}>
+                <Text key={f} style={{ fontSize: 15, lineHeight: 22, color: M.textBody, fontWeight: '600' }}>
                   • {f}
                 </Text>
               ))}
@@ -225,33 +218,33 @@ export default function PaywallScreen() {
           <Pressable
             onPress={onComingSoonPress}
             style={{
-              backgroundColor: '#F3EEEA',
-              borderRadius: 22,
+              backgroundColor: M.bgCardMuted,
+              borderRadius: M.r22,
               padding: 20,
               borderWidth: 1,
-              borderColor: '#DED5CC',
+              borderColor: M.line,
               opacity: 0.92,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: '#8A7E70' }}>{t('pay.coming.title', lang)}</Text>
-                <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: '#9A8E82' }}>{t('pay.coming.sub', lang)}</Text>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: M.textSoft }}>{t('pay.coming.title', lang)}</Text>
+                <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: M.textSoft }}>{t('pay.coming.sub', lang)}</Text>
               </View>
               <View
                 style={{
                   paddingHorizontal: 10,
                   paddingVertical: 5,
                   borderRadius: 999,
-                  backgroundColor: '#E8E2DC',
+                  backgroundColor: M.bgChipSelected,
                 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#7A6E61' }}>{t('pay.coming.badge', lang)}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: M.textMuted }}>{t('pay.coming.badge', lang)}</Text>
               </View>
             </View>
             <View style={{ marginTop: 16, gap: 8 }}>
               {comingFeatures.map((f) => (
-                <Text key={f} style={{ fontSize: 15, lineHeight: 22, color: '#958676', fontWeight: '600' }}>
+                <Text key={f} style={{ fontSize: 15, lineHeight: 22, color: M.textSoft, fontWeight: '600' }}>
                   • {f}
                 </Text>
               ))}
@@ -264,19 +257,20 @@ export default function PaywallScreen() {
           disabled={continueDisabled}
           style={{
             marginTop: 28,
-            backgroundColor: continueDisabled ? '#A89888' : '#2C251F',
-            borderRadius: 16,
+            backgroundColor: continueDisabled ? M.textSoft : M.inkButton,
+            borderRadius: M.r16,
             paddingVertical: 16,
             alignItems: 'center',
+            ...(!continueDisabled ? M.shadowSoft : {}),
           }}
         >
-          <Text style={{ color: '#FFFDF9', fontSize: 17, fontWeight: '700' }}>
+          <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>
             {continueDisabled ? t('pay.currentSelection', lang) : t('pay.continue', lang)}
           </Text>
         </Pressable>
 
         <Pressable onPress={goBack} style={{ marginTop: 12, paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#5F554A' }}>{t('pay.maybeLater', lang)}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: M.textBody }}>{t('pay.maybeLater', lang)}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

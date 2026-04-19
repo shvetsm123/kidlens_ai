@@ -9,6 +9,7 @@ import { localizeResultLine } from '../lib/localizeScanText';
 import { AVOID_PREFERENCE_IDS, type AvoidPreference, type Plan } from '../types/preferences';
 import type { AppLanguage } from '../lib/deviceLanguage';
 import type { RecentScan } from '../types/scan';
+import { M } from '../../constants/mamaTheme';
 import { selectDistinctDisplayReasons } from '../lib/scanResultAntiRepeat';
 import { VerdictBadge } from './VerdictBadge';
 type ResultTab = 'general' | 'ingredients';
@@ -41,16 +42,16 @@ function IngredientSection({
     <View style={{ marginTop: isFirst ? 14 : 24 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 }}>
         <View style={{ width: 3, height: 17, borderRadius: 2, backgroundColor: accent }} />
-        <Text style={{ fontSize: 15, fontWeight: '800', color: '#2A241C', letterSpacing: 0.2 }}>{title}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: M.text, letterSpacing: 0.2 }}>{title}</Text>
       </View>
       <View
         style={{
-          backgroundColor: '#F4EFE6',
-          borderRadius: 16,
+          backgroundColor: M.bgCardMuted,
+          borderRadius: M.r16,
           paddingVertical: 15,
           paddingHorizontal: 14,
           borderWidth: 1,
-          borderColor: '#E4D9CC',
+          borderColor: M.line,
           borderLeftWidth: 3,
           borderLeftColor: accent,
         }}
@@ -58,8 +59,8 @@ function IngredientSection({
         <View style={{ gap: 18 }}>
           {rows.map((row) => (
             <View key={row.key}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#1F1A16', letterSpacing: 0.15 }}>{row.name}</Text>
-              <Text style={{ marginTop: 7, fontSize: 13, lineHeight: 20, color: '#6A5F52' }}>{row.note}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: M.text, letterSpacing: 0.15 }}>{row.name}</Text>
+              <Text style={{ marginTop: 7, fontSize: 13, lineHeight: 20, color: M.textBody }}>{row.note}</Text>
             </View>
           ))}
         </View>
@@ -156,6 +157,7 @@ export function ScanResultModal({
   }, [scan, lang]);
 
   const favoriteDisabled = favoriteLoading || !scan;
+  const showProductImage = Boolean(scan?.imageUrl?.trim());
   const isUnknownNotFound =
     scan != null &&
     scan.verdict === 'unknown' &&
@@ -169,7 +171,7 @@ export function ScanResultModal({
         flex: 1,
         paddingVertical: 10,
         borderRadius: 11,
-        backgroundColor: tab === id ? '#FFFDF8' : 'transparent',
+        backgroundColor: tab === id ? M.cream : 'transparent',
       }}
     >
       <Text
@@ -177,7 +179,7 @@ export function ScanResultModal({
           textAlign: 'center',
           fontSize: 13,
           fontWeight: '700',
-          color: tab === id ? '#1F1A16' : '#7A6E61',
+          color: tab === id ? M.text : M.textMuted,
         }}
       >
         {label}
@@ -197,55 +199,51 @@ export function ScanResultModal({
         pointerEvents="box-none"
         style={{
           flex: 1,
-          backgroundColor: 'rgba(23, 18, 12, 0.44)',
+          backgroundColor: M.overlay,
           justifyContent: 'center',
           paddingHorizontal: 20,
         }}
       >
         <View
           style={{
-            borderRadius: 24,
-            backgroundColor: '#FFFDF8',
+            borderRadius: M.r24,
+            backgroundColor: M.bgCard,
             maxHeight: '88%',
             overflow: 'hidden',
-            shadowColor: '#000',
-            shadowOpacity: 0.15,
-            shadowRadius: 22,
-            shadowOffset: { width: 0, height: 10 },
-            elevation: 5,
+            ...M.shadowCard,
           }}
         >
-          {scan?.imageUrl ? (
+          {showProductImage ? (
             <Image
-              source={{ uri: scan.imageUrl }}
-              style={{ width: '100%', height: 168, backgroundColor: '#F0E8DC' }}
+              source={{ uri: scan!.imageUrl!.trim() }}
+              style={{ width: '100%', height: 168, backgroundColor: M.bgCardMuted }}
               contentFit="contain"
             />
           ) : null}
 
           <ScrollView
-            style={{ maxHeight: scan?.imageUrl ? undefined : '100%' }}
+            style={{ maxHeight: showProductImage ? undefined : '100%' }}
             contentContainerStyle={{ padding: 20, paddingBottom: 22 }}
             keyboardShouldPersistTaps="handled"
           >
             {isUnknownNotFound ? (
               <>
-                <Text style={{ fontSize: 13, color: '#8C7B6A', fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
+                <Text style={{ fontSize: 13, color: M.textSoft, fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
                 <Text
                   style={{
                     marginTop: 14,
                     fontSize: 26,
                     lineHeight: 32,
-                    color: '#1F1A16',
+                    color: M.text,
                     fontWeight: '700',
                   }}
                 >
                   {t('result.unknownProduct', lang)}
                 </Text>
-                <Text style={{ marginTop: 12, fontSize: 15, lineHeight: 22, color: '#5D5246' }}>
+                <Text style={{ marginTop: 12, fontSize: 15, lineHeight: 22, color: M.textBody }}>
                   {t('result.unknownBarcode', lang)}
                 </Text>
-                <Text style={{ marginTop: 14, fontSize: 13, color: '#817363' }}>
+                <Text style={{ marginTop: 14, fontSize: 13, color: M.textMuted }}>
                   {t('result.barcodeLabel', lang)} {scan?.barcode ?? '-'}
                 </Text>
                 <View style={{ marginTop: 24, flexDirection: 'row', gap: 10 }}>
@@ -254,30 +252,30 @@ export function ScanResultModal({
                     style={{
                       flex: 1,
                       borderRadius: 14,
-                      backgroundColor: '#EEE4D7',
+                      backgroundColor: M.bgChipSelected,
                       alignItems: 'center',
                       paddingVertical: 13,
                     }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38' }}>{t('common.close', lang)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('common.close', lang)}</Text>
                   </Pressable>
                   <Pressable
                     onPress={onScanAgain}
                     style={{
                       flex: 1,
                       borderRadius: 14,
-                      backgroundColor: '#2C251F',
+                      backgroundColor: M.inkButton,
                       alignItems: 'center',
                       paddingVertical: 13,
                     }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFDF9' }}>{t('result.scanAgain', lang)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('result.scanAgain', lang)}</Text>
                   </Pressable>
                 </View>
               </>
             ) : (
               <>
-                <Text style={{ fontSize: 13, color: '#8C7B6A', fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
+                <Text style={{ fontSize: 13, color: M.textSoft, fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
                 {reuseNotice ? (
                   <View
                     style={{
@@ -285,12 +283,12 @@ export function ScanResultModal({
                       paddingVertical: 8,
                       paddingHorizontal: 12,
                       borderRadius: 12,
-                      backgroundColor: '#F4EDE3',
+                      backgroundColor: M.bgCardMuted,
                       borderWidth: 1,
-                      borderColor: '#E4D9CC',
+                      borderColor: M.line,
                     }}
                   >
-                    <Text style={{ fontSize: 12, color: '#7A6B5E', fontWeight: '600', textAlign: 'center' }}>
+                    <Text style={{ fontSize: 12, color: M.textBody, fontWeight: '600', textAlign: 'center' }}>
                       {reuseNotice}
                     </Text>
                   </View>
@@ -309,7 +307,7 @@ export function ScanResultModal({
                       flex: 1,
                       fontSize: 25,
                       lineHeight: 30,
-                      color: '#1F1A16',
+                      color: M.text,
                       fontWeight: '700',
                     }}
                   >
@@ -334,9 +332,9 @@ export function ScanResultModal({
                         borderRadius: 14,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: plan === 'unlimited' && isFavorited ? '#F8EDED' : '#F5F0E8',
+                        backgroundColor: plan === 'unlimited' && isFavorited ? '#F8EDED' : M.bgChip,
                         borderWidth: 1,
-                        borderColor: plan === 'unlimited' && isFavorited ? '#E8C4C4' : '#E6DDD4',
+                        borderColor: plan === 'unlimited' && isFavorited ? '#E8C4C4' : M.line,
                         opacity: favoriteDisabled ? 0.5 : 1,
                       }}
                     >
@@ -349,9 +347,9 @@ export function ScanResultModal({
                   ) : null}
                 </View>
                 {!!scan?.brand && (
-                  <Text style={{ marginTop: 6, fontSize: 15, color: '#6D6053', fontWeight: '600' }}>{scan.brand}</Text>
+                  <Text style={{ marginTop: 6, fontSize: 15, color: M.textMuted, fontWeight: '600' }}>{scan.brand}</Text>
                 )}
-                <Text style={{ marginTop: 8, fontSize: 13, color: '#817363' }}>
+                <Text style={{ marginTop: 8, fontSize: 13, color: M.textMuted }}>
                   {t('result.barcodeLabel', lang)} {scan?.barcode ?? '-'}
                 </Text>
 
@@ -359,11 +357,11 @@ export function ScanResultModal({
                   style={{
                     marginTop: 14,
                     flexDirection: 'row',
-                    backgroundColor: '#EDE6DD',
-                    borderRadius: 14,
+                    backgroundColor: M.bgCardMuted,
+                    borderRadius: M.r14,
                     padding: 3,
                     borderWidth: 1,
-                    borderColor: '#E4D9CC',
+                    borderColor: M.line,
                   }}
                 >
                   {tabBtn('general', t('result.tab.general', lang))}
@@ -378,7 +376,7 @@ export function ScanResultModal({
                       </View>
                     ) : null}
 
-                    <Text style={{ marginTop: 10, fontSize: 15, lineHeight: 22, color: '#4F453B' }}>
+                    <Text style={{ marginTop: 10, fontSize: 15, lineHeight: 22, color: M.textBody }}>
                       {scan?.summary ? locLine(scan.summary) : ''}
                     </Text>
 
@@ -388,22 +386,22 @@ export function ScanResultModal({
                           marginTop: 10,
                           paddingVertical: 14,
                           paddingHorizontal: 14,
-                          borderRadius: 14,
-                          backgroundColor: '#F7EFE3',
+                          borderRadius: M.r14,
+                          backgroundColor: M.bgChip,
                           borderWidth: 1,
-                          borderColor: '#E2D0B8',
+                          borderColor: M.lineStrong,
                           borderLeftWidth: 4,
-                          borderLeftColor: '#C9A06E',
+                          borderLeftColor: M.gold,
                           gap: 8,
                         }}
                       >
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#4A3828', letterSpacing: 0.2 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: M.text, letterSpacing: 0.2 }}>
                           {t('result.matchesAvoid', lang)}
                         </Text>
                         {preferenceLines.map((line, index) => (
                           <Text
                             key={`${line}-${index}`}
-                            style={{ fontSize: 14, color: '#5C4A38', lineHeight: 20, fontWeight: '600' }}
+                            style={{ fontSize: 14, color: M.textBody, lineHeight: 20, fontWeight: '600' }}
                           >
                             • {locLine(preferenceMatchDisplayLine(line, lang))}
                           </Text>
@@ -413,7 +411,7 @@ export function ScanResultModal({
 
                     <View style={{ marginTop: showAvoidSection ? 12 : 14, gap: 8 }}>
                       {displayReasons.map((reason, index) => (
-                        <Text key={`${reason}-${index}`} style={{ fontSize: 14, color: '#5D5246', lineHeight: 20 }}>
+                        <Text key={`${reason}-${index}`} style={{ fontSize: 14, color: M.textBody, lineHeight: 20 }}>
                           • {reason}
                         </Text>
                       ))}
@@ -421,25 +419,25 @@ export function ScanResultModal({
 
                     {whyText ? (
                       <View style={{ marginTop: 16 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#6B5C4A' }}>{t('result.whyMatters', lang)}</Text>
-                        <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 21, color: '#5D5246' }}>{whyText}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: M.textMuted }}>{t('result.whyMatters', lang)}</Text>
+                        <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 21, color: M.textBody }}>{whyText}</Text>
                       </View>
                     ) : null}
 
                     {parentText ? (
                       <View style={{ marginTop: 16 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#7D6B58' }}>{t('result.parentTakeaway', lang)}</Text>
-                        <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 21, color: '#5D5246' }}>{parentText}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: M.textMuted }}>{t('result.parentTakeaway', lang)}</Text>
+                        <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 21, color: M.textBody }}>{parentText}</Text>
                       </View>
                     ) : null}
                   </>
                 ) : (
                   <View style={{ marginTop: 14, paddingBottom: 6 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#1F1A16', marginBottom: 2 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: M.text, marginBottom: 2 }}>
                       {t('result.ingredients.heading', lang)}
                     </Text>
                     {ingredientPack.kind === 'fallback' ? (
-                      <Text style={{ marginTop: 12, fontSize: 14, lineHeight: 21, color: '#5D5246' }}>
+                      <Text style={{ marginTop: 12, fontSize: 14, lineHeight: 21, color: M.textBody }}>
                         {t('result.ingredients.failBreakdown', lang)}
                       </Text>
                     ) : (
@@ -473,24 +471,24 @@ export function ScanResultModal({
                     style={{
                       flex: 1,
                       borderRadius: 14,
-                      backgroundColor: '#EEE4D7',
+                      backgroundColor: M.bgChipSelected,
                       alignItems: 'center',
                       paddingVertical: 13,
                     }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38' }}>{t('common.close', lang)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('common.close', lang)}</Text>
                   </Pressable>
                   <Pressable
                     onPress={onScanAgain}
                     style={{
                       flex: 1,
                       borderRadius: 14,
-                      backgroundColor: '#2C251F',
+                      backgroundColor: M.inkButton,
                       alignItems: 'center',
                       paddingVertical: 13,
                     }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFDF9' }}>{t('result.scanAgain', lang)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('result.scanAgain', lang)}</Text>
                   </Pressable>
                 </View>
               </>

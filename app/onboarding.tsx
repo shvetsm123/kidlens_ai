@@ -1,36 +1,67 @@
-import { StatusBar } from 'expo-status-bar';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Animated, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { M } from '../constants/mamaTheme';
 import { avoidLabel, getAppLanguage, t } from '../src/lib/i18n';
 import { setAvoidPreferences, setOnboardingCompleted, setResultStyle, syncRemotePreferencesWithLocal } from '../src/lib/storage';
 import { AVOID_PREFERENCE_IDS, type AvoidPreference } from '../src/types/preferences';
 
-const totalSteps = 3;
+const ONBOARD_IMAGES = [
+  require('../assets/images/onboarding/onboarding-1.png'),
+  require('../assets/images/onboarding/onboarding-2.png'),
+  require('../assets/images/onboarding/onboarding-3.png'),
+] as const;
+
+const HERO_STEPS = 3;
+const totalSteps = 4;
+const H_PADDING = 28;
+const TOP_NAV_MIN_H = 52;
+/** Fixed rhythm: dots + gap + CTA + safe area (footer never moves between steps). */
+const FOOTER_TOP_PAD = 14;
+const FOOTER_GAP_DOTS_TO_CTA = 14;
+const FOOTER_BOTTOM_PAD = 12;
+
+type HeroSlide = { image: (typeof ONBOARD_IMAGES)[number]; title: string; subtitle: string };
 
 export default function OnboardingScreen() {
   const lang = getAppLanguage();
+  const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const [step, setStep] = useState(0);
   const [avoidPreferences, setAvoidPreferencesState] = useState<AvoidPreference[]>([]);
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const isFirstStepMount = useRef(true);
 
-  const introSlides = [
+  const heroSlides: HeroSlide[] = [
     {
+      image: ONBOARD_IMAGES[0],
       title: t('onboard.slide1.title', lang),
       subtitle: t('onboard.slide1.sub', lang),
     },
     {
+      image: ONBOARD_IMAGES[1],
       title: t('onboard.slide2.title', lang),
       subtitle: t('onboard.slide2.sub', lang),
     },
+    {
+      image: ONBOARD_IMAGES[2],
+      title: t('onboard.slide3.title', lang),
+      subtitle: t('onboard.slide3.sub', lang),
+    },
   ];
 
-  const isIntroStep = step < introSlides.length;
-  const isAvoidStep = step === introSlides.length;
-  const slide = isIntroStep ? introSlides[step] : null;
+  const isHeroStep = step < HERO_STEPS;
+  const isAvoidStep = step === HERO_STEPS;
+  const slide = isHeroStep ? heroSlides[step] : null;
+
+  const contentMaxW = Math.min(winW, 420);
+  const columnW = Math.min(winW - H_PADDING * 2, contentMaxW);
+  /** Large hero card; height scales with width so cover stays balanced (no letterboxing). */
+  const imageCardHeight = Math.min(Math.max(columnW * 0.98, 272), winH * 0.5);
 
   useEffect(() => {
     if (isFirstStepMount.current) {
@@ -40,7 +71,7 @@ export default function OnboardingScreen() {
     contentOpacity.setValue(0);
     Animated.timing(contentOpacity, {
       toValue: 1,
-      duration: 240,
+      duration: 280,
       useNativeDriver: true,
     }).start();
   }, [step, contentOpacity]);
@@ -67,14 +98,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  const onSkipTop = async () => {
-    await setResultStyle('quick');
-    await setAvoidPreferences([]);
-    await setOnboardingCompleted(true);
-    await syncRemotePreferencesWithLocal();
-    router.replace('/age');
-  };
-
   const toggleAvoidPreference = (id: AvoidPreference) => {
     setAvoidPreferencesState((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
@@ -82,157 +105,248 @@ export default function OnboardingScreen() {
   };
 
   const isFinalStep = step === totalSteps - 1;
-  const showSkip = step < introSlides.length;
+
+  const pagerDots = (
+    <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
+      {Array.from({ length: totalSteps }).map((_, index) => {
+        const active = index === step;
+        return (
+          <View
+            key={String(index)}
+            style={{
+              width: active ? 24 : 7,
+              height: 7,
+              borderRadius: 999,
+              backgroundColor: active ? M.ink : M.lineStrong,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+
+  const primaryCta = (
+    <Pressable
+      onPress={onNext}
+      style={{
+        width: '100%',
+        backgroundColor: M.inkButton,
+        borderRadius: M.r16,
+        paddingVertical: 17,
+        alignItems: 'center',
+        ...M.shadowSoft,
+      }}
+    >
+      <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>
+        {isFinalStep ? t('common.continue', lang) : t('common.next', lang)}
+      </Text>
+    </Pressable>
+  );
+
+  /** Same bottom zone on every step — not inside scroll, so the CTA never jumps. */
+  const bottomActionZone = (
+    <View
+      style={{
+        paddingHorizontal: H_PADDING,
+        paddingTop: FOOTER_TOP_PAD,
+        paddingBottom: FOOTER_BOTTOM_PAD + insets.bottom,
+        borderTopWidth: 1,
+        borderTopColor: M.line,
+        backgroundColor: M.bgPage,
+      }}
+    >
+      {pagerDots}
+      <View style={{ height: FOOTER_GAP_DOTS_TO_CTA }} />
+      <View style={{ width: '100%', maxWidth: contentMaxW, alignSelf: 'center' }}>{primaryCta}</View>
+    </View>
+  );
 
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        backgroundColor: '#F6F1E8',
-        paddingHorizontal: 24,
-        paddingTop: 8,
-        paddingBottom: 20,
-      }}
-      edges={['top', 'left', 'right']}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: M.bgPage }} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
+
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          minHeight: 44,
-          marginBottom: 8,
+          minHeight: TOP_NAV_MIN_H,
+          paddingHorizontal: H_PADDING - 4,
         }}
       >
         {step > 0 ? (
           <Pressable
             onPress={onBack}
             hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingRight: 12 }}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingRight: 12 }}
           >
-            <Text style={{ fontSize: 17, color: '#6D6053', fontWeight: '700', marginRight: 6 }}>←</Text>
-            <Text style={{ fontSize: 16, color: '#6D6053', fontWeight: '600' }}>{t('common.back', lang)}</Text>
+            <Text style={{ fontSize: 17, color: M.textMuted, fontWeight: '700', marginRight: 6 }}>←</Text>
+            <Text style={{ fontSize: 16, color: M.textMuted, fontWeight: '600' }}>{t('common.back', lang)}</Text>
           </Pressable>
         ) : (
-          <View style={{ width: 72 }} />
+          <View style={{ width: 44 }} />
         )}
-        {showSkip ? (
-          <Pressable onPress={onSkipTop} hitSlop={8}>
-            <Text style={{ fontSize: 16, color: '#8A7E70', fontWeight: '600' }}>{t('common.skip', lang)}</Text>
-          </Pressable>
-        ) : (
-          <View style={{ width: 72 }} />
-        )}
+        <View style={{ width: 44 }} />
       </View>
 
-      <Animated.View style={{ flex: 1, opacity: contentOpacity, justifyContent: 'center' }}>
-        {isIntroStep && slide ? (
-          <View
-            style={{
-              backgroundColor: '#FFFDF8',
-              borderRadius: 28,
-              padding: 28,
-              shadowColor: '#9B8D7A',
-              shadowOpacity: 0.12,
-              shadowRadius: 18,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 3,
-            }}
-          >
-            <Text style={{ fontSize: 34, lineHeight: 42, color: '#1F1A16', fontWeight: '700' }}>
-              {slide.title}
-            </Text>
-            <Text
-              style={{
-                marginTop: 16,
-                fontSize: 17,
-                lineHeight: 25,
-                color: '#5F554A',
+      <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
+        <View style={{ flex: 1 }}>
+          {isHeroStep && slide ? (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                flexGrow: 1,
+                paddingHorizontal: H_PADDING,
+                paddingTop: 10,
+                paddingBottom: 20,
+                alignItems: 'center',
               }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
             >
-              {slide.subtitle}
-            </Text>
-          </View>
-        ) : null}
+              <View style={{ width: '100%', maxWidth: contentMaxW, flexGrow: 1 }}>
+                <View
+                  style={{
+                    width: '100%',
+                    height: imageCardHeight,
+                    borderRadius: M.r28,
+                    backgroundColor: M.bgCardMuted,
+                    borderWidth: 1,
+                    borderColor: M.line,
+                    overflow: 'hidden',
+                    ...M.shadowCard,
+                  }}
+                >
+                  <Image
+                    source={slide.image}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                </View>
 
-        {isAvoidStep ? (
-          <View
-            style={{
-              backgroundColor: '#FFFDF8',
-              borderRadius: 28,
-              padding: 22,
-              shadowColor: '#9B8D7A',
-              shadowOpacity: 0.12,
-              shadowRadius: 18,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 3,
-            }}
-          >
-            <Text style={{ fontSize: 30, lineHeight: 37, color: '#1F1A16', fontWeight: '700' }}>
-              {t('onboard.avoid.title', lang)}
-            </Text>
-            <Text style={{ marginTop: 10, fontSize: 16, lineHeight: 23, color: '#5F554A' }}>
-              {t('onboard.avoid.sub', lang)}
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
-              {AVOID_PREFERENCE_IDS.map((id) => {
-                const selected = avoidPreferences.includes(id);
-                return (
-                  <Pressable
-                    key={id}
-                    onPress={() => toggleAvoidPreference(id)}
+                <View style={{ height: 28 }} />
+
+                <Text
+                  style={{
+                    fontSize: 28,
+                    lineHeight: 34,
+                    color: M.text,
+                    fontWeight: '800',
+                    letterSpacing: -0.3,
+                  }}
+                >
+                  {slide.title}
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 14,
+                    fontSize: 16,
+                    lineHeight: 24,
+                    color: M.textBody,
+                  }}
+                >
+                  {slide.subtitle}
+                </Text>
+
+                <View style={{ flexGrow: 1, minHeight: 16 }} />
+              </View>
+            </ScrollView>
+          ) : null}
+
+          {isAvoidStep ? (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                flexGrow: 1,
+                paddingHorizontal: H_PADDING,
+                paddingTop: 12,
+                paddingBottom: 20,
+              }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={{ width: '100%', maxWidth: contentMaxW, alignSelf: 'center', flexGrow: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 26,
+                    lineHeight: 32,
+                    color: M.text,
+                    fontWeight: '800',
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  {t('onboard.avoid.title', lang)}
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 12,
+                    fontSize: 16,
+                    lineHeight: 24,
+                    color: M.textBody,
+                  }}
+                >
+                  {t('onboard.avoid.sub', lang)}
+                </Text>
+
+                <View
+                  style={{
+                    marginTop: 28,
+                    borderRadius: M.r22,
+                    backgroundColor: M.bgCard,
+                    borderWidth: 1,
+                    borderColor: M.line,
+                    paddingVertical: 20,
+                    paddingHorizontal: 18,
+                    ...M.shadowSoft,
+                  }}
+                >
+                  <Text
                     style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 13,
-                      borderRadius: 999,
-                      backgroundColor: selected ? '#EEE2D4' : '#FAF6EF',
-                      borderWidth: 1,
-                      borderColor: selected ? '#D8C3AA' : '#E7DDCF',
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: M.textMuted,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.6,
+                      marginBottom: 14,
                     }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#3A3128' }}>{avoidLabel(id, lang)}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Pressable onPress={() => setAvoidPreferencesState([])} style={{ marginTop: 16, alignSelf: 'flex-start' }}>
-              <Text style={{ fontSize: 14, color: '#8A7E70', fontWeight: '600' }}>{t('onboard.avoid.skip', lang)}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </Animated.View>
+                    {t('prefs.avoidList', lang)}
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                    {AVOID_PREFERENCE_IDS.map((id) => {
+                      const selected = avoidPreferences.includes(id);
+                      return (
+                        <Pressable
+                          key={id}
+                          onPress={() => toggleAvoidPreference(id)}
+                          style={{
+                            paddingVertical: 12,
+                            paddingHorizontal: 16,
+                            borderRadius: 999,
+                            backgroundColor: selected ? M.bgChipSelected : M.bgChip,
+                            borderWidth: 1.5,
+                            borderColor: selected ? M.gold : M.line,
+                          }}
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? M.text : M.textBody }}>
+                            {avoidLabel(id, lang)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
 
-      <View style={{ alignItems: 'center', paddingTop: 8 }}>
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 28 }}>
-          {Array.from({ length: totalSteps }).map((_, index) => (
-            <View
-              key={String(index)}
-              style={{
-                width: index === step ? 20 : 8,
-                height: 8,
-                borderRadius: 999,
-                backgroundColor: index === step ? '#2C251F' : '#D8CCBD',
-              }}
-            />
-          ))}
+                <View style={{ flexGrow: 1, minHeight: 16 }} />
+              </View>
+            </ScrollView>
+          ) : null}
+
+          {bottomActionZone}
         </View>
-
-        <Pressable
-          onPress={onNext}
-          style={{
-            width: '100%',
-            backgroundColor: '#2C251F',
-            borderRadius: 16,
-            paddingVertical: 16,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: '#FFFDF9', fontSize: 17, fontWeight: '700' }}>
-            {isFinalStep ? t('common.continue', lang) : t('common.next', lang)}
-          </Text>
-        </Pressable>
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }

@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { M } from '../constants/mamaTheme';
 import { RecentScanCard } from '../src/components/RecentScanCard';
 import { ScanResultModal } from '../src/components/ScanResultModal';
 import { ScannerModal } from '../src/components/ScannerModal';
@@ -836,7 +837,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, position: 'relative', backgroundColor: '#F6F1E8' }}
+      style={{ flex: 1, position: 'relative', backgroundColor: M.bgPage }}
       edges={['top', 'left', 'right']}
     >
       <StatusBar style="dark" />
@@ -856,15 +857,15 @@ export default function HomeScreen() {
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 14,
-                backgroundColor: '#EDE6DD',
+                borderRadius: M.r14,
+                backgroundColor: M.bgCardMuted,
                 borderWidth: 1,
-                borderColor: '#E0D6CA',
+                borderColor: M.line,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="options-outline" size={22} color="#231C15" />
+              <Ionicons name="options-outline" size={22} color={M.ink} />
             </Pressable>
             {plan === 'free' ? (
               <Pressable
@@ -873,10 +874,10 @@ export default function HomeScreen() {
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 999,
-                  backgroundColor: '#EBDDCB',
+                  backgroundColor: M.bgChipSelected,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#5B4A38' }}>{t('common.upgrade', lang)}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: M.textBody }}>{t('common.upgrade', lang)}</Text>
               </Pressable>
             ) : (
               <Pressable
@@ -885,12 +886,12 @@ export default function HomeScreen() {
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 999,
-                  backgroundColor: '#EDE8E2',
+                  backgroundColor: M.bgChip,
                   borderWidth: 1,
-                  borderColor: '#D9D0C6',
+                  borderColor: M.line,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B6158', letterSpacing: 0.4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: M.textMuted, letterSpacing: 0.4 }}>
                   {t('common.unlimited', lang)}
                 </Text>
               </Pressable>
@@ -900,7 +901,7 @@ export default function HomeScreen() {
             <Text
               style={{
                 fontSize: 13,
-                color: '#9A8E82',
+                color: M.textSoft,
                 fontWeight: '600',
                 textAlign: 'right',
                 letterSpacing: 0.2,
@@ -913,64 +914,61 @@ export default function HomeScreen() {
 
         <View
           style={{
-            borderRadius: 28,
-            backgroundColor: '#FFFDF8',
+            borderRadius: M.r28,
+            backgroundColor: M.bgCard,
             padding: 22,
-            shadowColor: '#9B8D7A',
-            shadowOpacity: 0.12,
-            shadowRadius: 20,
-            shadowOffset: { width: 0, height: 10 },
-            elevation: 4,
+            ...M.shadowCard,
           }}
         >
-          <Text style={{ fontSize: 29, lineHeight: 34, fontWeight: '700', color: '#1F1A16' }}>
+          <Text style={{ fontSize: 29, lineHeight: 34, fontWeight: '700', color: M.text }}>
             {t('home.scanTitle', lang)}
           </Text>
-          <Text style={{ marginTop: 10, fontSize: 16, lineHeight: 23, color: '#5F554A' }}>
+          <Text style={{ marginTop: 10, fontSize: 16, lineHeight: 23, color: M.textBody }}>
             {t('home.scanSubtitle', lang)}
           </Text>
 
           <View
             style={{
               marginTop: 18,
-              borderRadius: 20,
+              borderRadius: M.r20,
               height: 160,
-              backgroundColor: '#EEE3D6',
+              backgroundColor: M.sageWash,
               borderWidth: 1,
-              borderColor: '#E2D6C7',
+              borderColor: M.lineSage,
               overflow: 'hidden',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Ionicons name="barcode-outline" size={52} color="#C4B8A8" />
+            <Ionicons name="barcode-outline" size={52} color={M.sage} />
           </View>
 
           <Pressable
             onPress={openScanner}
             style={{
               marginTop: 16,
-              borderRadius: 16,
-              backgroundColor: '#2C251F',
+              borderRadius: M.r16,
+              backgroundColor: M.inkButton,
               paddingVertical: 16,
               alignItems: 'center',
+              ...M.shadowSoft,
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFDF9' }}>{t('home.scanProduct', lang)}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: M.cream }}>{t('home.scanProduct', lang)}</Text>
           </Pressable>
           <Pressable
             onPress={openManualBarcodeEntry}
             disabled={scanPipelineLoading}
             style={{ marginTop: 14, paddingVertical: 10, alignItems: 'center' }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38', textDecorationLine: 'underline' }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody, textDecorationLine: 'underline' }}>
               {t('home.enterBarcodeManually', lang)}
             </Text>
           </Pressable>
         </View>
 
         <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 21, fontWeight: '700', color: '#1F1A16' }}>{t('home.recentScans', lang)}</Text>
+          <Text style={{ fontSize: 21, fontWeight: '700', color: M.text }}>{t('home.recentScans', lang)}</Text>
 
           {recentScans.length === 0 ? (
             <>
@@ -978,11 +976,11 @@ export default function HomeScreen() {
                 <View
                   key={String(item)}
                   style={{
-                    borderRadius: 18,
-                    backgroundColor: '#FFFDF8',
+                    borderRadius: M.r18,
+                    backgroundColor: M.bgCard,
                     padding: 16,
                     borderWidth: 1,
-                    borderColor: '#EEE4D7',
+                    borderColor: M.line,
                   }}
                 >
                   <View
@@ -990,7 +988,7 @@ export default function HomeScreen() {
                       height: 14,
                       width: '46%',
                       borderRadius: 8,
-                      backgroundColor: '#EFE6D9',
+                      backgroundColor: M.bgCardMuted,
                     }}
                   />
                   <View
@@ -999,7 +997,7 @@ export default function HomeScreen() {
                       height: 12,
                       width: '80%',
                       borderRadius: 8,
-                      backgroundColor: '#F3ECDF',
+                      backgroundColor: M.bgChip,
                     }}
                   />
                 </View>
@@ -1011,10 +1009,10 @@ export default function HomeScreen() {
         </View>
 
         <View style={{ gap: 10 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{t('home.favorites', lang)}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: M.text }}>{t('home.favorites', lang)}</Text>
           {plan === 'unlimited' ? (
             favoritesList.length === 0 ? (
-              <Text style={{ fontSize: 14, color: '#9A8E82', fontWeight: '600', fontStyle: 'italic' }}>
+              <Text style={{ fontSize: 14, color: M.textSoft, fontWeight: '600', fontStyle: 'italic' }}>
                 {t('home.noFavorites', lang)}
               </Text>
             ) : (
@@ -1026,24 +1024,25 @@ export default function HomeScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 12,
-                    borderRadius: 16,
-                    backgroundColor: '#FFFDF8',
+                    borderRadius: M.r16,
+                    backgroundColor: M.bgCard,
                     paddingVertical: 12,
                     paddingHorizontal: 14,
                     borderWidth: 1,
-                    borderColor: '#E8DFD4',
+                    borderColor: M.line,
+                    ...M.shadowSoft,
                   }}
                 >
                   <Ionicons name="heart" size={18} color="#B85C5C" />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#1F1A16' }} numberOfLines={1}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.text }} numberOfLines={1}>
                       {item.productName}
                     </Text>
-                    <Text style={{ marginTop: 4, fontSize: 12, color: '#958676' }} numberOfLines={1}>
+                    <Text style={{ marginTop: 4, fontSize: 12, color: M.textSoft }} numberOfLines={1}>
                       {item.barcode}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#C4B8A8" />
+                  <Ionicons name="chevron-forward" size={18} color={M.lineStrong} />
                 </Pressable>
               ))
             )
@@ -1057,14 +1056,14 @@ export default function HomeScreen() {
                 alignSelf: 'flex-start',
                 paddingVertical: 8,
                 paddingHorizontal: 12,
-                borderRadius: 12,
-                backgroundColor: '#FAF7F2',
+                borderRadius: M.r12,
+                backgroundColor: M.bgChip,
                 borderWidth: 1,
-                borderColor: '#E4D9CC',
+                borderColor: M.line,
               }}
             >
-              <Ionicons name="lock-closed-outline" size={16} color="#B59B7A" />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#8A7E70' }}>{t('home.favoritesLocked', lang)}</Text>
+              <Ionicons name="lock-closed-outline" size={16} color={M.gold} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: M.textSoft }}>{t('home.favoritesLocked', lang)}</Text>
             </Pressable>
           )}
         </View>
@@ -1094,7 +1093,7 @@ export default function HomeScreen() {
               paddingHorizontal: 12,
             }}
           >
-            <Text style={{ fontSize: 12, color: '#A89888', fontWeight: '600' }}>{t('home.resetDev', lang)}</Text>
+            <Text style={{ fontSize: 12, color: M.textSoft, fontWeight: '600' }}>{t('home.resetDev', lang)}</Text>
           </Pressable>
         ) : null}
       </ScrollView>
@@ -1105,7 +1104,7 @@ export default function HomeScreen() {
             StyleSheet.absoluteFillObject,
             {
               zIndex: 88,
-              backgroundColor: 'rgba(23, 18, 12, 0.44)',
+              backgroundColor: M.overlay,
               alignItems: 'center',
               justifyContent: 'center',
               paddingHorizontal: 20,
@@ -1114,39 +1113,40 @@ export default function HomeScreen() {
         >
           <View
             style={{
-              borderRadius: 24,
-              backgroundColor: '#FFFDF8',
+              borderRadius: M.r24,
+              backgroundColor: M.bgCard,
               padding: 22,
               width: '100%',
               maxWidth: 360,
+              ...M.shadowCard,
             }}
           >
-            <Text style={{ fontSize: 22, fontWeight: '700', color: '#1F1A16' }}>{scanError.title}</Text>
-            <Text style={{ marginTop: 12, fontSize: 15, lineHeight: 22, color: '#5D5246' }}>{scanError.message}</Text>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: M.text }}>{scanError.title}</Text>
+            <Text style={{ marginTop: 12, fontSize: 15, lineHeight: 22, color: M.textBody }}>{scanError.message}</Text>
             <View style={{ marginTop: 22, flexDirection: 'row', gap: 10 }}>
               <Pressable
                 onPress={dismissScanError}
                 style={{
                   flex: 1,
-                  borderRadius: 14,
-                  backgroundColor: '#EEE4D7',
+                  borderRadius: M.r14,
+                  backgroundColor: M.bgChipSelected,
                   alignItems: 'center',
                   paddingVertical: 13,
                 }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38' }}>{t('common.close', lang)}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('common.close', lang)}</Text>
               </Pressable>
               <Pressable
                 onPress={onScanErrorTryAgain}
                 style={{
                   flex: 1,
-                  borderRadius: 14,
-                  backgroundColor: '#2C251F',
+                  borderRadius: M.r14,
+                  backgroundColor: M.inkButton,
                   alignItems: 'center',
                   paddingVertical: 13,
                 }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFDF9' }}>{t('common.tryAgain', lang)}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('common.tryAgain', lang)}</Text>
               </Pressable>
             </View>
           </View>
@@ -1159,7 +1159,7 @@ export default function HomeScreen() {
             StyleSheet.absoluteFillObject,
             {
               zIndex: 92,
-              backgroundColor: 'rgba(23, 18, 12, 0.44)',
+              backgroundColor: M.overlay,
               alignItems: 'center',
               justifyContent: 'center',
               paddingHorizontal: 20,
@@ -1168,21 +1168,22 @@ export default function HomeScreen() {
         >
           <View
             style={{
-              borderRadius: 24,
-              backgroundColor: '#FFFDF8',
+              borderRadius: M.r24,
+              backgroundColor: M.bgCard,
               padding: 22,
               width: '100%',
               maxWidth: 360,
+              ...M.shadowCard,
             }}
           >
-            <Text style={{ fontSize: 13, color: '#8C7B6A', fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
-            <Text style={{ marginTop: 14, fontSize: 26, lineHeight: 32, color: '#1F1A16', fontWeight: '700' }}>
+            <Text style={{ fontSize: 13, color: M.textMuted, fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
+            <Text style={{ marginTop: 14, fontSize: 26, lineHeight: 32, color: M.text, fontWeight: '700' }}>
               {t('result.unknownProduct', lang)}
             </Text>
-            <Text style={{ marginTop: 12, fontSize: 15, lineHeight: 22, color: '#5D5246' }}>
+            <Text style={{ marginTop: 12, fontSize: 15, lineHeight: 22, color: M.textBody }}>
               {t('result.unknownBody', lang)}
             </Text>
-            <Text style={{ marginTop: 14, fontSize: 13, color: '#817363' }}>
+            <Text style={{ marginTop: 14, fontSize: 13, color: M.textMuted }}>
               {t('result.barcodeLabel', lang)} {String(unknownScan.barcode ?? '').trim() || '-'}
             </Text>
             <View style={{ marginTop: 24, flexDirection: 'row', gap: 10 }}>
@@ -1190,25 +1191,25 @@ export default function HomeScreen() {
                 onPress={onCloseUnknownModal}
                 style={{
                   flex: 1,
-                  borderRadius: 14,
-                  backgroundColor: '#EEE4D7',
+                  borderRadius: M.r14,
+                  backgroundColor: M.bgChipSelected,
                   alignItems: 'center',
                   paddingVertical: 13,
                 }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38' }}>{t('common.close', lang)}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('common.close', lang)}</Text>
               </Pressable>
               <Pressable
                 onPress={onUnknownTryAgain}
                 style={{
                   flex: 1,
-                  borderRadius: 14,
-                  backgroundColor: '#2C251F',
+                  borderRadius: M.r14,
+                  backgroundColor: M.inkButton,
                   alignItems: 'center',
                   paddingVertical: 13,
                 }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFDF9' }}>{t('common.tryAgain', lang)}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('common.tryAgain', lang)}</Text>
               </Pressable>
             </View>
           </View>
@@ -1225,7 +1226,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('common.close', lang)}
             onPress={closeManualBarcodeEntry}
-            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(23, 18, 12, 0.44)' }]}
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: M.overlay }]}
           />
           <View
             pointerEvents="box-none"
@@ -1237,16 +1238,17 @@ export default function HomeScreen() {
           >
             <View
               style={{
-                borderRadius: 22,
-                backgroundColor: '#FFFDF8',
+                borderRadius: M.r22,
+                backgroundColor: M.bgCard,
                 padding: 20,
                 width: '100%',
                 maxWidth: 400,
                 alignSelf: 'center',
+                ...M.shadowCard,
               }}
             >
-              <Text style={{ fontSize: 20, fontWeight: '800', color: '#1F1A16' }}>{t('home.manualBarcodeTitle', lang)}</Text>
-              <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: '#6D6053' }}>{t('home.manualBarcodeHint', lang)}</Text>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: M.text }}>{t('home.manualBarcodeTitle', lang)}</Text>
+              <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: M.textMuted }}>{t('home.manualBarcodeHint', lang)}</Text>
               <TextInput
                 value={manualBarcodeValue}
                 onChangeText={(v) => {
@@ -1254,7 +1256,7 @@ export default function HomeScreen() {
                   setManualBarcodeValue(digitsOnlyFromBarcodeInput(v).slice(0, 14));
                 }}
                 placeholder={t('home.manualBarcodePlaceholder', lang)}
-                placeholderTextColor="#B5A896"
+                placeholderTextColor={M.textSoft}
                 keyboardType="number-pad"
                 autoCorrect={false}
                 autoCapitalize="none"
@@ -1263,15 +1265,15 @@ export default function HomeScreen() {
                 onSubmitEditing={submitManualBarcode}
                 style={{
                   marginTop: 14,
-                  borderRadius: 14,
+                  borderRadius: M.r14,
                   borderWidth: 1,
-                  borderColor: manualBarcodeError ? '#C98A7A' : '#E4D9CC',
+                  borderColor: manualBarcodeError ? '#C98A7A' : M.line,
                   paddingHorizontal: 14,
                   paddingVertical: 12,
                   fontSize: 18,
                   fontWeight: '600',
-                  color: '#1F1A16',
-                  backgroundColor: '#FAF6EF',
+                  color: M.text,
+                  backgroundColor: M.bgChip,
                 }}
               />
               {manualBarcodeError ? (
@@ -1284,26 +1286,26 @@ export default function HomeScreen() {
                   onPress={closeManualBarcodeEntry}
                   style={{
                     flex: 1,
-                    borderRadius: 14,
-                    backgroundColor: '#EEE4D7',
+                    borderRadius: M.r14,
+                    backgroundColor: M.bgChipSelected,
                     alignItems: 'center',
                     paddingVertical: 14,
                   }}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#5B4A38' }}>{t('home.manualBarcodeCancel', lang)}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('home.manualBarcodeCancel', lang)}</Text>
                 </Pressable>
                 <Pressable
                   onPress={submitManualBarcode}
                   disabled={scanPipelineLoading}
                   style={{
                     flex: 1,
-                    borderRadius: 14,
-                    backgroundColor: scanPipelineLoading ? '#4A4238' : '#2C251F',
+                    borderRadius: M.r14,
+                    backgroundColor: scanPipelineLoading ? M.textMuted : M.inkButton,
                     alignItems: 'center',
                     paddingVertical: 14,
                   }}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFDF9' }}>{t('home.manualBarcodeFind', lang)}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('home.manualBarcodeFind', lang)}</Text>
                 </Pressable>
               </View>
             </View>
@@ -1342,7 +1344,7 @@ export default function HomeScreen() {
             StyleSheet.absoluteFillObject,
             {
               zIndex: 100,
-              backgroundColor: 'rgba(23, 18, 12, 0.45)',
+              backgroundColor: M.overlay,
               alignItems: 'center',
               justifyContent: 'center',
               paddingHorizontal: 32,
@@ -1351,25 +1353,21 @@ export default function HomeScreen() {
         >
           <View
             style={{
-              borderRadius: 20,
-              backgroundColor: '#FFFDF8',
+              borderRadius: M.r20,
+              backgroundColor: M.bgCard,
               paddingVertical: 28,
               paddingHorizontal: 32,
               alignItems: 'center',
               width: '100%',
               maxWidth: 320,
-              shadowColor: '#000',
-              shadowOpacity: 0.12,
-              shadowRadius: 20,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 4,
+              ...M.shadowCard,
             }}
           >
-            <ActivityIndicator size="large" color="#2C251F" />
-            <Text style={{ marginTop: 16, fontSize: 17, fontWeight: '700', color: '#1F1A16', textAlign: 'center' }}>
+            <ActivityIndicator size="large" color={M.ink} />
+            <Text style={{ marginTop: 16, fontSize: 17, fontWeight: '700', color: M.text, textAlign: 'center' }}>
               {t('loading.checking', lang)}
             </Text>
-            <Text style={{ marginTop: 8, fontSize: 14, color: '#6D6053', textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ marginTop: 8, fontSize: 14, color: M.textMuted, textAlign: 'center', lineHeight: 20 }}>
               {t('loading.wait', lang)}
             </Text>
           </View>

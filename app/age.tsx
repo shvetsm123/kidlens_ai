@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { M } from '../constants/mamaTheme';
 import {
   formatLocalDateToIso,
   parseBirthdateToLocalNoon,
@@ -107,7 +108,7 @@ export default function AgeScreen() {
 
   if (!ready) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F6F1E8' }} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: M.bgPage }} edges={['top', 'left', 'right']}>
         <StatusBar style="dark" />
       </SafeAreaView>
     );
@@ -117,7 +118,7 @@ export default function AgeScreen() {
     <SafeAreaView
       style={{
         flex: 1,
-        backgroundColor: '#F6F1E8',
+        backgroundColor: M.bgPage,
         paddingHorizontal: 24,
         paddingVertical: 24,
         justifyContent: 'space-between',
@@ -139,52 +140,48 @@ export default function AgeScreen() {
               paddingRight: 12,
             }}
           >
-            <Text style={{ fontSize: 17, color: '#6D6053', fontWeight: '700', marginRight: 6 }}>←</Text>
-            <Text style={{ fontSize: 16, color: '#6D6053', fontWeight: '600' }}>{t('common.back', lang)}</Text>
+            <Text style={{ fontSize: 17, color: M.textMuted, fontWeight: '700', marginRight: 6 }}>←</Text>
+            <Text style={{ fontSize: 16, color: M.textMuted, fontWeight: '600' }}>{t('common.back', lang)}</Text>
           </Pressable>
         ) : null}
-        <Text style={{ fontSize: 34, lineHeight: 42, color: '#1F1A16', fontWeight: '700' }}>{t('age.title', lang)}</Text>
-        <Text style={{ marginTop: 12, fontSize: 17, lineHeight: 25, color: '#5F554A' }}>{t('age.subtitle', lang)}</Text>
+        <Text style={{ fontSize: 34, lineHeight: 42, color: M.text, fontWeight: '700' }}>{t('age.title', lang)}</Text>
+        <Text style={{ marginTop: 12, fontSize: 17, lineHeight: 25, color: M.textBody }}>{t('age.subtitle', lang)}</Text>
       </View>
 
       <View
         style={{
-          backgroundColor: '#FFFDF8',
-          borderRadius: 24,
+          backgroundColor: M.bgCard,
+          borderRadius: M.r24,
           paddingHorizontal: 20,
           paddingVertical: 24,
-          shadowColor: '#9B8D7A',
-          shadowOpacity: 0.12,
-          shadowRadius: 18,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 3,
+          ...M.shadowCard,
           gap: 12,
         }}
       >
-        <Text style={{ fontSize: 14, fontWeight: '700', color: '#6D6053' }}>{t('age.birthdateLabel', lang)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: M.textMuted }}>{t('age.birthdateLabel', lang)}</Text>
         <Pressable
           onPress={openPicker}
           style={{
-            borderRadius: 16,
+            borderRadius: M.r16,
             borderWidth: 1,
-            borderColor: '#E4D9CC',
+            borderColor: M.line,
             paddingVertical: 14,
             paddingHorizontal: 16,
-            backgroundColor: '#FAF6EF',
+            backgroundColor: M.bgChip,
           }}
         >
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{formatLocalDateToIso(dob)}</Text>
-          <Text style={{ marginTop: 6, fontSize: 14, color: '#7A6E61' }}>{t('age.tapToChange', lang)}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: M.text }}>{formatLocalDateToIso(dob)}</Text>
+          <Text style={{ marginTop: 6, fontSize: 14, color: M.textMuted }}>{t('age.tapToChange', lang)}</Text>
         </Pressable>
         <View style={{ paddingTop: 4 }}>
-          <Text style={{ fontSize: 14, color: '#5F554A', lineHeight: 21 }}>
+          <Text style={{ fontSize: 14, color: M.textBody, lineHeight: 21 }}>
             {t('age.currentApprox', lang, { label: profilePreview.ageDisplayLabel })}
           </Text>
         </View>
       </View>
 
       {iosPickerOpen && Platform.OS === 'ios' ? (
-        <View style={{ backgroundColor: '#FFFDF8', borderRadius: 16, paddingBottom: 8 }}>
+        <View style={{ backgroundColor: M.bgCard, borderRadius: M.r16, paddingBottom: 8, borderWidth: 1, borderColor: M.line }}>
           <DateTimePicker
             value={dob}
             mode="date"
@@ -202,7 +199,7 @@ export default function AgeScreen() {
             onPress={() => setIosPickerOpen(false)}
             style={{ alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 20 }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#2C251F' }}>{t('age.datePickerDone', lang)}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: M.ink }}>{t('age.datePickerDone', lang)}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -211,13 +208,14 @@ export default function AgeScreen() {
         onPress={onSubmit}
         style={{
           width: '100%',
-          backgroundColor: '#2C251F',
-          borderRadius: 16,
+          backgroundColor: M.inkButton,
+          borderRadius: M.r16,
           paddingVertical: 16,
           alignItems: 'center',
+          ...M.shadowSoft,
         }}
       >
-        <Text style={{ color: '#FFFDF9', fontSize: 17, fontWeight: '700' }}>
+        <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>
           {isEdit ? t('common.save', lang) : t('common.continue', lang)}
         </Text>
       </Pressable>

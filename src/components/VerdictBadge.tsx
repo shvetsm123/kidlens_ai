@@ -1,28 +1,32 @@
 import { Text, View } from 'react-native';
 
+import { verdictColors } from '../../constants/mamaTheme';
 import { getAppLanguage, t } from '../lib/i18n';
 import type { Verdict } from '../types/scan';
 
-const VERDICT_STYLES: Record<Verdict, { key: 'verdict.good' | 'verdict.sometimes' | 'verdict.avoid' | 'verdict.unknown'; backgroundColor: string; color: string }> = {
+const VERDICT_STYLES: Record<
+  Verdict,
+  { key: 'verdict.good' | 'verdict.sometimes' | 'verdict.avoid' | 'verdict.unknown'; backgroundColor: string; color: string }
+> = {
   good: {
     key: 'verdict.good',
-    backgroundColor: '#E6F4EA',
-    color: '#2E6C45',
+    backgroundColor: verdictColors.good.bg,
+    color: verdictColors.good.text,
   },
   sometimes: {
     key: 'verdict.sometimes',
-    backgroundColor: '#FCECD9',
-    color: '#8A5A18',
+    backgroundColor: verdictColors.sometimes.bg,
+    color: verdictColors.sometimes.text,
   },
   avoid: {
     key: 'verdict.avoid',
-    backgroundColor: '#F8E1E1',
-    color: '#8A2D2D',
+    backgroundColor: verdictColors.avoid.bg,
+    color: verdictColors.avoid.text,
   },
   unknown: {
     key: 'verdict.unknown',
-    backgroundColor: '#ECECEC',
-    color: '#5D5D5D',
+    backgroundColor: verdictColors.unknown.bg,
+    color: verdictColors.unknown.text,
   },
 };
 

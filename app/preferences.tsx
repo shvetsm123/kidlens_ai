@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { M } from '../constants/mamaTheme';
 import {
   formatLocalDateToIso,
   parseBirthdateToLocalNoon,
@@ -122,7 +123,7 @@ export default function PreferencesScreen() {
   if (!ready) {
     return (
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: '#F6F1E8', paddingHorizontal: 20, paddingTop: 4 }}
+        style={{ flex: 1, backgroundColor: M.bgPage, paddingHorizontal: 20, paddingTop: 4 }}
         edges={['top', 'left', 'right']}
       >
         <StatusBar style="dark" />
@@ -138,18 +139,18 @@ export default function PreferencesScreen() {
             marginBottom: 24,
           }}
         >
-          <Text style={{ fontSize: 17, color: '#6D6053', fontWeight: '700', marginRight: 6 }}>←</Text>
-          <Text style={{ fontSize: 16, color: '#6D6053', fontWeight: '600' }}>{t('common.back', lang)}</Text>
+          <Text style={{ fontSize: 17, color: M.textMuted, fontWeight: '700', marginRight: 6 }}>←</Text>
+          <Text style={{ fontSize: 16, color: M.textMuted, fontWeight: '600' }}>{t('common.back', lang)}</Text>
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="small" color="#8A7E70" />
+          <ActivityIndicator size="small" color={M.textSoft} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F6F1E8' }} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: M.bgPage }} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={{
@@ -171,37 +172,33 @@ export default function PreferencesScreen() {
             marginBottom: 8,
           }}
         >
-          <Text style={{ fontSize: 17, color: '#6D6053', fontWeight: '700', marginRight: 6 }}>←</Text>
-          <Text style={{ fontSize: 16, color: '#6D6053', fontWeight: '600' }}>{t('common.back', lang)}</Text>
+          <Text style={{ fontSize: 17, color: M.textMuted, fontWeight: '700', marginRight: 6 }}>←</Text>
+          <Text style={{ fontSize: 16, color: M.textMuted, fontWeight: '600' }}>{t('common.back', lang)}</Text>
         </Pressable>
-        <Text style={{ fontSize: 28, lineHeight: 34, fontWeight: '700', color: '#1F1A16' }}>{t('prefs.title', lang)}</Text>
-        <Text style={{ marginTop: 8, fontSize: 15, lineHeight: 22, color: '#6D6053' }}>
+        <Text style={{ fontSize: 28, lineHeight: 34, fontWeight: '700', color: M.text }}>{t('prefs.title', lang)}</Text>
+        <Text style={{ marginTop: 8, fontSize: 15, lineHeight: 22, color: M.textMuted }}>
           {t('prefs.subtitle', lang)}
         </Text>
 
         <View style={{ marginTop: 28 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{t('prefs.childBirthdate', lang)}</Text>
-          <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: '#7A6E61' }}>{t('prefs.childBirthdateHelp', lang)}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: M.text }}>{t('prefs.childBirthdate', lang)}</Text>
+          <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: M.textMuted }}>{t('prefs.childBirthdateHelp', lang)}</Text>
           <Pressable
             onPress={openPicker}
             style={{
               marginTop: 14,
-              backgroundColor: '#FFFDF8',
-              borderRadius: 20,
+              backgroundColor: M.bgCard,
+              borderRadius: M.r20,
               paddingVertical: 18,
               paddingHorizontal: 16,
               borderWidth: 1,
-              borderColor: '#E8DFD4',
-              shadowColor: '#9B8D7A',
-              shadowOpacity: 0.08,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 2,
+              borderColor: M.line,
+              ...M.shadowSoft,
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{formatLocalDateToIso(dob)}</Text>
-            <Text style={{ marginTop: 6, fontSize: 14, color: '#7A6E61' }}>{t('age.tapToChange', lang)}</Text>
-            <Text style={{ marginTop: 10, fontSize: 14, color: '#5F554A', lineHeight: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: M.text }}>{formatLocalDateToIso(dob)}</Text>
+            <Text style={{ marginTop: 6, fontSize: 14, color: M.textMuted }}>{t('age.tapToChange', lang)}</Text>
+            <Text style={{ marginTop: 10, fontSize: 14, color: M.textBody, lineHeight: 20 }}>
               {t('prefs.childAgeNow', lang, { label: profilePreview.ageDisplayLabel })}
             </Text>
           </Pressable>
@@ -211,11 +208,11 @@ export default function PreferencesScreen() {
           <View
             style={{
               marginTop: 16,
-              backgroundColor: '#FFFDF8',
-              borderRadius: 16,
+              backgroundColor: M.bgCard,
+              borderRadius: M.r16,
               paddingBottom: 8,
               borderWidth: 1,
-              borderColor: '#E8DFD4',
+              borderColor: M.line,
             }}
           >
             <DateTimePicker
@@ -235,14 +232,14 @@ export default function PreferencesScreen() {
               onPress={() => setIosPickerOpen(false)}
               style={{ alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 20 }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#2C251F' }}>{t('age.datePickerDone', lang)}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: M.ink }}>{t('age.datePickerDone', lang)}</Text>
             </Pressable>
           </View>
         ) : null}
 
         <View style={{ marginTop: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F1A16' }}>{t('prefs.avoidList', lang)}</Text>
-          <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: '#7A6E61' }}>{t('prefs.avoidHelp', lang)}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: M.text }}>{t('prefs.avoidList', lang)}</Text>
+          <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: M.textMuted }}>{t('prefs.avoidHelp', lang)}</Text>
           <View style={{ marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {AVOID_PREFERENCE_OPTIONS.map((item) => {
               const selected = avoidList.includes(item.id);
@@ -254,12 +251,12 @@ export default function PreferencesScreen() {
                     paddingVertical: 11,
                     paddingHorizontal: 14,
                     borderRadius: 999,
-                    backgroundColor: selected ? '#F1E7D9' : '#FFFDF8',
+                    backgroundColor: selected ? M.bgChipSelected : M.bgCard,
                     borderWidth: 1,
-                    borderColor: selected ? '#C9A06E' : '#E4D9CC',
+                    borderColor: selected ? M.gold : M.line,
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? '#3D3429' : '#5F554A' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? M.text : M.textBody }}>
                     {avoidLabel(item.id, lang)}
                   </Text>
                 </Pressable>
@@ -273,19 +270,20 @@ export default function PreferencesScreen() {
           disabled={saving}
           style={{
             marginTop: 36,
-            borderRadius: 16,
-            backgroundColor: saving ? '#4A4238' : '#2C251F',
+            borderRadius: M.r16,
+            backgroundColor: saving ? M.textMuted : M.inkButton,
             paddingVertical: 16,
             alignItems: 'center',
+            ...M.shadowSoft,
           }}
         >
-          <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFDF9' }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: M.cream }}>
             {saving ? t('prefs.saving', lang) : t('prefs.save', lang)}
           </Text>
         </Pressable>
 
         <Pressable onPress={onCancel} disabled={saving} style={{ marginTop: 16, paddingVertical: 12, alignItems: 'center' }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: '#8A7E70' }}>{t('common.cancel', lang)}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: M.textSoft }}>{t('common.cancel', lang)}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
