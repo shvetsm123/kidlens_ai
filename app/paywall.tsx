@@ -1,12 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
 import { M } from '../constants/mamaTheme';
 import { getAppLanguage, t } from '../src/lib/i18n';
-import { getPlan, getResultStyle, setPlan } from '../src/lib/storage';
+import { purchasesErrorMessage } from '../src/lib/revenuecat/revenueCatService';
+import { getPlan, setPlan } from '../src/lib/storage';
+import { useRevenueCat } from '../src/providers/RevenueCatProvider';
 import type { Plan } from '../src/types/preferences';
 
 function parsePlanQueryParam(raw: string | string[] | undefined): Plan | null {
@@ -28,6 +31,18 @@ export default function PaywallScreen() {
   const params = useLocalSearchParams<{ plan?: string | string[] }>();
   const [currentPlan, setCurrentPlan] = useState<Plan>('free');
   const [selectedPlan, setSelectedPlan] = useState<Plan>('unlimited');
+  const [rcBusy, setRcBusy] = useState(false);
+  const {
+    isNativeStoreSupported,
+    presentPaywall,
+    restorePurchases,
+    refreshCustomerInfo,
+    lastError,
+    hasMamaScanUnlimited,
+  } = useRevenueCat();
+
+  const isEffectivelyUnlimited = hasMamaScanUnlimited || currentPlan === 'unlimited';
+  const isEffectivelyFree = !isEffectivelyUnlimited;
 
   const freeFeatures = useMemo(
     () => [
@@ -70,23 +85,73 @@ export default function PaywallScreen() {
     router.back();
   };
 
-  const onContinue = async () => {
-    console.warn('[planDebug][paywall] before setPlan', { selectedPlan, currentPlan });
-    await setPlan(selectedPlan);
-    const nextPlan = await getPlan();
-    const nextStyle = await getResultStyle();
-    console.warn('[planDebug][paywall] after setPlan', { nextPlan, nextStyle });
-    router.back();
-  };
+  const continueDisabled =
+    (selectedPlan === 'free' && currentPlan === 'free' && isEffectivelyFree) ||
+    (selectedPlan === 'unlimited' && hasMamaScanUnlimited && currentPlan === 'unlimited');
 
-  const continueDisabled = currentPlan === selectedPlan;
+  const onContinue = async () => {
+    if (selectedPlan === 'free') {
+      await setPlan('free');
+      void refreshCustomerInfo();
+      router.back();
+      return;
+    }
+
+    if (hasMamaScanUnlimited) {
+      await setPlan('unlimited');
+      void refreshCustomerInfo();
+      router.back();
+      return;
+    }
+
+    if (!isNativeStoreSupported) {
+      Alert.alert(
+        'Subscriptions',
+        Platform.OS === 'web'
+          ? 'In-app purchases are only available in the iOS and Android apps.'
+          : 'Subscriptions are not available on this platform.',
+      );
+      return;
+    }
+
+    setRcBusy(true);
+    try {
+      const result = await presentPaywall();
+      await refreshCustomerInfo();
+      if (result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED) {
+        router.back();
+      }
+    } catch (e) {
+      Alert.alert('Subscription', purchasesErrorMessage(e));
+    } finally {
+      setRcBusy(false);
+    }
+  };
 
   const onComingSoonPress = useCallback(() => {
     Alert.alert(t('alert.coming.title', lang), t('alert.coming.msg', lang));
   }, [lang]);
 
+  const onRestorePurchases = useCallback(async () => {
+    if (!isNativeStoreSupported) {
+      return;
+    }
+    setRcBusy(true);
+    try {
+      await restorePurchases();
+      await load();
+      Alert.alert('Restore', 'Purchases were restored if this account had any.');
+    } catch (e) {
+      Alert.alert('Restore failed', purchasesErrorMessage(e));
+    } finally {
+      setRcBusy(false);
+    }
+  }, [isNativeStoreSupported, restorePurchases, load]);
+
   const freeSelected = selectedPlan === 'free';
   const unlimitedSelected = selectedPlan === 'unlimited';
+  const showContinueSpinner =
+    rcBusy && selectedPlan === 'unlimited' && !hasMamaScanUnlimited && isNativeStoreSupported;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: M.bgPage }} edges={['top', 'left', 'right']}>
@@ -131,7 +196,7 @@ export default function PaywallScreen() {
         >
           <Text style={{ fontSize: 14, fontWeight: '700', color: M.sageDeep }}>
             {t('pay.current', lang)}{' '}
-            {currentPlan === 'free' ? t('pay.planFree', lang) : t('pay.planUnlimited', lang)}
+            {isEffectivelyUnlimited ? t('pay.planUnlimited', lang) : t('pay.planFree', lang)}
           </Text>
           <Text style={{ marginTop: 6, fontSize: 13, color: M.sage, lineHeight: 18 }}>{t('pay.switchHint', lang)}</Text>
         </View>
@@ -153,7 +218,7 @@ export default function PaywallScreen() {
                 <Text style={{ fontSize: 22, fontWeight: '800', color: M.text }}>{t('pay.free.title', lang)}</Text>
                 <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: M.textMuted }}>{t('pay.free.sub', lang)}</Text>
               </View>
-              {currentPlan === 'free' ? (
+              {isEffectivelyFree ? (
                 <View
                   style={{
                     paddingHorizontal: 10,
@@ -193,7 +258,7 @@ export default function PaywallScreen() {
                   {t('pay.unlimited.sub', lang)}
                 </Text>
               </View>
-              {currentPlan === 'unlimited' ? (
+              {isEffectivelyUnlimited ? (
                 <View
                   style={{
                     paddingHorizontal: 10,
@@ -253,21 +318,49 @@ export default function PaywallScreen() {
         </View>
 
         <Pressable
-          onPress={onContinue}
-          disabled={continueDisabled}
+          onPress={() => void onContinue()}
+          disabled={continueDisabled || rcBusy}
           style={{
             marginTop: 28,
-            backgroundColor: continueDisabled ? M.textSoft : M.inkButton,
+            backgroundColor: continueDisabled || rcBusy ? M.textSoft : M.inkButton,
             borderRadius: M.r16,
             paddingVertical: 16,
             alignItems: 'center',
-            ...(!continueDisabled ? M.shadowSoft : {}),
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 10,
+            ...(!continueDisabled && !rcBusy ? M.shadowSoft : {}),
           }}
         >
+          {showContinueSpinner ? <ActivityIndicator color={M.cream} /> : null}
           <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>
             {continueDisabled ? t('pay.currentSelection', lang) : t('pay.continue', lang)}
           </Text>
         </Pressable>
+
+        {lastError ? (
+          <Text style={{ marginTop: 10, fontSize: 13, lineHeight: 18, color: '#A94442', textAlign: 'center' }}>{lastError}</Text>
+        ) : null}
+
+        {isNativeStoreSupported ? (
+          <Pressable
+            onPress={() => void onRestorePurchases()}
+            disabled={rcBusy}
+            style={{ marginTop: 14, paddingVertical: 10, alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '600', color: M.textMuted }}>Restore purchases</Text>
+          </Pressable>
+        ) : null}
+
+        {hasMamaScanUnlimited && isNativeStoreSupported ? (
+          <Pressable
+            onPress={() => router.push('/customer-center' as Href)}
+            disabled={rcBusy}
+            style={{ marginTop: 4, paddingVertical: 10, alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '600', color: M.textMuted }}>Manage subscription</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable onPress={goBack} style={{ marginTop: 12, paddingVertical: 14, alignItems: 'center' }}>
           <Text style={{ fontSize: 16, fontWeight: '600', color: M.textBody }}>{t('pay.maybeLater', lang)}</Text>

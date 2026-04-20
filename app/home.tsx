@@ -31,7 +31,7 @@ import { serializeChildAgePreferenceForContext } from '../src/lib/childAgeContex
 import { buildScanAnalysisContextKey, findRecentScanForReuse } from '../src/lib/scanAnalysisContext';
 import {
   addRecentScan,
-  canUseSuccessfulScan,
+  canUseSuccessfulScanForPlan,
   getAvoidPreferences,
   ensureSupabaseProfileLocal,
   getCachedSupabaseProfileId,
@@ -54,6 +54,7 @@ import {
   isSupabaseConfigured,
   removeFavorite,
 } from '../src/api/supabase';
+import { useRevenueCat } from '../src/providers/RevenueCatProvider';
 import type { FavoriteListItem } from '../src/types/ai';
 import type { AvoidPreference, Plan } from '../src/types/preferences';
 import type { RecentScan } from '../src/types/scan';
@@ -119,6 +120,7 @@ type PendingPostScanOutcome =
 const POST_SCAN_RESULT_DELAY_MS = Platform.OS === 'ios' ? 80 : 0;
 
 export default function HomeScreen() {
+  const { gatedPlan, customerInfo } = useRevenueCat();
   const lang = getAppLanguage();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
@@ -151,6 +153,7 @@ export default function HomeScreen() {
   const [scanProgressKey, setScanProgressKey] = useState<string | null>(null);
   const [scanError, setScanError] = useState<{ title: string; message: string } | null>(null);
   const [plan, setPlan] = useState<Plan>('free');
+  const effectivePlan = useMemo(() => gatedPlan(plan), [gatedPlan, plan]);
   const [dailyScanState, setDailyScanState] = useState({ dateKey: '', count: 0 });
   const [avoidPreferences, setAvoidPreferences] = useState<AvoidPreference[]>([]);
   const [childAge, setChildAge] = useState<number | null>(null);
@@ -173,7 +176,7 @@ export default function HomeScreen() {
   unknownResultVisibleRef.current = unknownResultVisible;
   scannerModalVisibleRef.current = scannerModalVisible;
 
-  const dailyLimitReached = plan === 'free' && dailyScanState.count >= 2;
+  const dailyLimitReached = effectivePlan === 'free' && dailyScanState.count >= 2;
 
   const clearPostScanHandoff = useCallback(() => {
     pendingPostScanOutcomeRef.current = null;
@@ -326,7 +329,7 @@ export default function HomeScreen() {
         setAvoidPreferences(avoids);
         setDailyScanState(daily);
         setChildAge(Number.isFinite(profile.completedWholeYears) ? profile.completedWholeYears : null);
-        if (p === 'unlimited') {
+        if (gatedPlan(p) === 'unlimited') {
           await refreshFavoritesList();
         } else {
           setFavoritesList([]);
@@ -338,13 +341,17 @@ export default function HomeScreen() {
     } finally {
       hydrateLockRef.current = false;
     }
-  }, [refreshFavoritesList]);
+  }, [refreshFavoritesList, gatedPlan]);
 
   useFocusEffect(
     useCallback(() => {
       void hydrate();
     }, [hydrate]),
   );
+
+  useEffect(() => {
+    void getPlan().then(setPlan);
+  }, [customerInfo]);
 
   useEffect(() => {
     if (scannerModalVisible) {
@@ -387,7 +394,7 @@ export default function HomeScreen() {
         return;
       }
       setModalProductId(pid);
-      if (plan === 'unlimited' && pid) {
+      if (effectivePlan === 'unlimited' && pid) {
         setModalFavorited(await isFavorite(client, profileId, pid));
       } else {
         setModalFavorited(false);
@@ -396,7 +403,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [resultModalVisible, displayScan, plan, modalScan, activeModalScanId]);
+  }, [resultModalVisible, displayScan, effectivePlan, modalScan, activeModalScanId]);
 
   const onCloseModal = () => {
     clearPostScanHandoff();
@@ -591,7 +598,7 @@ export default function HomeScreen() {
         return;
       }
 
-      const allowed = await canUseSuccessfulScan();
+      const allowed = await canUseSuccessfulScanForPlan(effectivePlan);
       if (!allowed) {
         pendingPostScanOutcomeRef.current = null;
         expectingScannerDismissHandoffRef.current = false;
@@ -806,7 +813,7 @@ export default function HomeScreen() {
   };
 
   const onFavoriteControlPress = async () => {
-    if (plan !== 'unlimited') {
+    if (effectivePlan !== 'unlimited') {
       promptFavoritesUnlimitedUpsell();
       return;
     }
@@ -896,7 +903,7 @@ export default function HomeScreen() {
             >
               <Ionicons name="options-outline" size={22} color={M.ink} />
             </Pressable>
-            {plan === 'free' ? (
+            {effectivePlan === 'free' ? (
               <Pressable
                 onPress={() => navigatePaywall()}
                 style={{
@@ -926,7 +933,7 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
-          {plan === 'free' ? (
+          {effectivePlan === 'free' ? (
             <Text
               style={{
                 fontSize: 13,
@@ -1075,7 +1082,7 @@ export default function HomeScreen() {
 
         <View style={{ gap: 10 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: M.text }}>{t('home.favorites', lang)}</Text>
-          {plan === 'unlimited' ? (
+          {effectivePlan === 'unlimited' ? (
             favoritesList.length === 0 ? (
               <Text style={{ fontSize: 14, color: M.textSoft, fontWeight: '600', fontStyle: 'italic' }}>
                 {t('home.noFavorites', lang)}
@@ -1445,7 +1452,7 @@ export default function HomeScreen() {
           key={scanForResultModal.id}
           scan={scanForResultModal}
           childAge={childAge}
-          plan={plan}
+          plan={effectivePlan}
           avoidPreferences={avoidPreferences}
           isFavorited={modalFavorited}
           favoriteLoading={favoriteActionBusy}

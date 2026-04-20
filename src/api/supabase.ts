@@ -451,7 +451,7 @@ export async function getFavorites(
     if (error || !Array.isArray(data)) {
       return [];
     }
-    return data as DbFavoriteJoinedRow[];
+    return data as unknown as DbFavoriteJoinedRow[];
   } catch (err) {
     console.warn('[Supabase] getFavorites', err);
     return [];

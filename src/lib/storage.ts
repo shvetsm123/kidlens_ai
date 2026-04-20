@@ -564,13 +564,17 @@ export const incrementSuccessfulScanCountIfNeeded = async (): Promise<DailySucce
   return next;
 };
 
-export const canUseSuccessfulScan = async (): Promise<boolean> => {
-  const plan = await getPlan();
+export const canUseSuccessfulScanForPlan = async (plan: Plan): Promise<boolean> => {
   if (plan !== 'free') {
     return true;
   }
   const { count } = await getDailySuccessfulScanState();
   return count < 2;
+};
+
+export const canUseSuccessfulScan = async (): Promise<boolean> => {
+  const plan = await getPlan();
+  return canUseSuccessfulScanForPlan(plan);
 };
 
 export const getResultStyle = async (): Promise<ResultStyle> => {
