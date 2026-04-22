@@ -12,23 +12,23 @@ const revenueCatApiKeyBoth =
   process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? REVENUECAT_DEFAULT_PUBLIC_KEY;
 
 const config: ExpoConfig = {
-  name: 'mamascan',
-  slug: 'mamascan',
+  name: 'KidLens AI',
+  slug: 'kidlensai',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'mamascan',
+  scheme: 'kidlensai',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.mikhail.mamascan',
+    bundleIdentifier: 'com.mikhail.kidlensai',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
-    package: 'com.mikhail.mamascan',
+    package: 'com.mikhail.kidlensai',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',

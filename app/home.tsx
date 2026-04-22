@@ -40,7 +40,6 @@ import {
   getPlan,
   getRecentScans,
   incrementSuccessfulScanCountIfNeeded,
-  resetAppDataForDev,
   syncRemotePreferencesWithLocal,
   tryPersistSuccessfulScanToSupabase,
   waitUntilPreferencesSyncIdle,
@@ -139,6 +138,7 @@ export default function HomeScreen() {
   const [manualBarcodeVisible, setManualBarcodeVisible] = useState(false);
   const [manualBarcodeValue, setManualBarcodeValue] = useState('');
   const [manualBarcodeError, setManualBarcodeError] = useState<string | null>(null);
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
 
   const activeResult = useMemo(() => {
     if (!activeModalScanId) {
@@ -1140,36 +1140,66 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {typeof __DEV__ !== 'undefined' && __DEV__ ? (
-          <Pressable
-            onPress={async () => {
-              clearPostScanHandoff();
-              setScanPipelineLoading(false);
-              setScanProgressKey(null);
-              scanPipelineLoadingRef.current = false;
-              setScanError(null);
-              setUnknownResultVisible(false);
-              setUnknownScan(null);
-              setResultModalVisible(false);
-              setActiveModalScanId(null);
-              setModalScan(null);
-              setResultReuseBanner(null);
-              setScannerModalVisible(false);
-              isProcessingScanRef.current = false;
-              await resetAppDataForDev();
-              router.replace('/onboarding');
-            }}
+        <Pressable
+          onPress={() => setSupportModalVisible(true)}
+          style={{
+            alignSelf: 'center',
+            marginTop: 8,
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+          }}
+        >
+          <Text style={{ fontSize: 14, color: M.textSoft, fontWeight: '600' }}>Support</Text>
+        </Pressable>
+      </ScrollView>
+      <Modal
+        visible={supportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSupportModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: M.overlay,
+            justifyContent: 'center',
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
             style={{
+              borderRadius: M.r24,
+              backgroundColor: M.bgCard,
+              padding: 22,
+              width: '100%',
+              maxWidth: 360,
               alignSelf: 'center',
-              marginTop: 8,
-              paddingVertical: 8,
-              paddingHorizontal: 12,
+              ...M.shadowCard,
             }}
           >
-            <Text style={{ fontSize: 12, color: M.textSoft, fontWeight: '600' }}>{t('home.resetDev', lang)}</Text>
-          </Pressable>
-        ) : null}
-      </ScrollView>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: M.text }}>Support</Text>
+            <Text style={{ marginTop: 14, fontSize: 15, lineHeight: 22, color: M.textBody }}>Contact us at</Text>
+            <Text
+              style={{ marginTop: 10, fontSize: 17, fontWeight: '700', color: M.ink, letterSpacing: 0.2 }}
+              selectable
+            >
+              kidlensai@gmail.com
+            </Text>
+            <Pressable
+              onPress={() => setSupportModalVisible(false)}
+              style={{
+                marginTop: 22,
+                borderRadius: M.r14,
+                backgroundColor: M.inkButton,
+                alignItems: 'center',
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('common.close', lang)}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       {scanError ? (
         <View
           pointerEvents="auto"
