@@ -1,8 +1,8 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Animated, Easing, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { M } from '../constants/mamaTheme';
@@ -33,8 +33,10 @@ export default function OnboardingScreen() {
   const { width: winW, height: winH } = useWindowDimensions();
   const [step, setStep] = useState(0);
   const [avoidPreferences, setAvoidPreferencesState] = useState<AvoidPreference[]>([]);
+  const [transitioning, setTransitioning] = useState(false);
   const contentOpacity = useRef(new Animated.Value(1)).current;
-  const isFirstStepMount = useRef(true);
+  const contentTranslateX = useRef(new Animated.Value(0)).current;
+  const isTransitioning = useRef(false);
 
   const heroSlides: HeroSlide[] = [
     {
@@ -62,19 +64,6 @@ export default function OnboardingScreen() {
   /** Tall hero art frame with a single rounded clipping container. */
   const imageCardHeight = Math.min(440, Math.max(400, winH * 0.56));
 
-  useEffect(() => {
-    if (isFirstStepMount.current) {
-      isFirstStepMount.current = false;
-      return;
-    }
-    contentOpacity.setValue(0);
-    Animated.timing(contentOpacity, {
-      toValue: 1,
-      duration: 280,
-      useNativeDriver: true,
-    }).start();
-  }, [step, contentOpacity]);
-
   const finishOnboarding = async () => {
     await setResultStyle('quick');
     await setAvoidPreferences(avoidPreferences);
@@ -83,17 +72,70 @@ export default function OnboardingScreen() {
     router.replace('/age');
   };
 
+  const transitionToStep = (nextStep: number, direction: 'forward' | 'back') => {
+    if (isTransitioning.current) {
+      return;
+    }
+    isTransitioning.current = true;
+    setTransitioning(true);
+
+    const exitX = direction === 'forward' ? -22 : 22;
+    const enterX = direction === 'forward' ? 22 : -22;
+
+    Animated.parallel([
+      Animated.timing(contentOpacity, {
+        toValue: 0,
+        duration: 110,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentTranslateX, {
+        toValue: exitX,
+        duration: 110,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      contentOpacity.setValue(0);
+      contentTranslateX.setValue(enterX);
+      setStep(nextStep);
+
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(contentOpacity, {
+            toValue: 1,
+            duration: 160,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(contentTranslateX, {
+            toValue: 0,
+            duration: 160,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          isTransitioning.current = false;
+          setTransitioning(false);
+        });
+      });
+    });
+  };
+
   const onNext = async () => {
+    if (isTransitioning.current) {
+      return;
+    }
     if (step >= totalSteps - 1) {
       await finishOnboarding();
       return;
     }
-    setStep((current) => current + 1);
+    transitionToStep(step + 1, 'forward');
   };
 
   const onBack = () => {
-    if (step > 0) {
-      setStep((current) => current - 1);
+    if (step > 0 && !isTransitioning.current) {
+      transitionToStep(step - 1, 'back');
     }
   };
 
@@ -127,6 +169,7 @@ export default function OnboardingScreen() {
   const primaryCta = (
     <Pressable
       onPress={onNext}
+      disabled={transitioning}
       style={{
         width: '100%',
         backgroundColor: M.inkButton,
@@ -176,6 +219,7 @@ export default function OnboardingScreen() {
         {step > 0 ? (
           <Pressable
             onPress={onBack}
+            disabled={transitioning}
             hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
             style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingRight: 12 }}
           >
@@ -188,8 +232,14 @@ export default function OnboardingScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
-        <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
+        <Animated.View
+          style={{
+            flex: 1,
+            opacity: contentOpacity,
+            transform: [{ translateX: contentTranslateX }],
+          }}
+        >
           {isHeroStep && slide ? (
             <ScrollView
               style={{ flex: 1 }}
@@ -211,18 +261,13 @@ export default function OnboardingScreen() {
                     height: imageCardHeight,
                     borderRadius: M.r28,
                     overflow: 'hidden',
-                    shadowColor: '#4A3828',
-                    shadowOpacity: 0.08,
-                    shadowRadius: 18,
-                    shadowOffset: { width: 0, height: 8 },
-                    elevation: 3,
                   }}
                 >
                   <Image
+                    key={`onboarding-image-${step}`}
                     source={slide.image}
                     style={{ width: '100%', height: '100%' }}
                     contentFit="cover"
-                    transition={200}
                   />
                 </View>
 
@@ -343,10 +388,10 @@ export default function OnboardingScreen() {
               </View>
             </ScrollView>
           ) : null}
+        </Animated.View>
 
-          {bottomActionZone}
-        </View>
-      </Animated.View>
+        {bottomActionZone}
+      </View>
     </SafeAreaView>
   );
 }
