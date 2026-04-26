@@ -9,7 +9,7 @@ import { M } from '../constants/mamaTheme';
 import { getAppLanguage, t } from '../src/lib/i18n';
 import { hasMamaScanUnlimitedAccess } from '../src/lib/revenuecat/entitlements';
 import { purchasesErrorMessage } from '../src/lib/revenuecat/revenueCatService';
-import { getPlan, setPlan } from '../src/lib/storage';
+import { getChildAgeProfile, getPlan, setPlan } from '../src/lib/storage';
 import { useRevenueCat } from '../src/providers/RevenueCatProvider';
 import type { Plan } from '../src/types/preferences';
 
@@ -39,6 +39,7 @@ export default function PaywallScreen() {
   const isScanLockedSource = source === 'scan_locked';
   const [currentPlan, setCurrentPlan] = useState<Plan>('free');
   const [selectedPlan, setSelectedPlan] = useState<Plan>('unlimited');
+  const [childAgeYears, setChildAgeYears] = useState<number | null>(null);
   const [rcBusy, setRcBusy] = useState(false);
   const {
     isNativeStoreSupported,
@@ -55,35 +56,27 @@ export default function PaywallScreen() {
   const upgradeBenefits = useMemo(
     () => [
       { icon: '∞', label: 'Unlimited scans', bg: M.sageWash },
-      { icon: '🔍', label: 'Full ingredient analysis', bg: '#F3EADB' },
-      { icon: '👶', label: 'Kid-safe recommendations', bg: '#EFE7F6' },
-      { icon: '⭐', label: 'Save favorite products', bg: '#F8ECDD' },
+      { icon: '⚡', label: "Know if it's safe in seconds", bg: '#F3EADB' },
+      { icon: '👀', label: 'No more reading tiny labels', bg: '#EFE7F6' },
+      { icon: '👶', label: 'Make better choices for your child', bg: '#F8ECDD' },
     ],
     [],
   );
   const upgradeOffer = useMemo(() => ['Then $9.99/month', 'Cancel anytime'], []);
-  const scanLockedBenefits = useMemo(
-    () => [
-      { icon: '🔍', label: 'Sugar safety level' },
-      { icon: '🧪', label: 'Additives explained' },
-      { icon: '👶', label: 'Kid-safe recommendation' },
-      { icon: '🎯', label: 'Personalized by age' },
-    ],
-    [],
-  );
   const scanLockedOffer = useMemo(() => ['Then $9.99/month', 'Cancel anytime'], []);
   const scanLockedPreview = useMemo(
     () => [
       '⚠️ High sugar level detected',
       '⚠️ Additives may need review',
-      '🔒 Full safety analysis locked',
     ],
     [],
   );
 
   const load = useCallback(async () => {
     const p = await getPlan();
+    const ageProfile = await getChildAgeProfile();
     setCurrentPlan(p);
+    setChildAgeYears(Number.isFinite(ageProfile.completedWholeYears) ? ageProfile.completedWholeYears : null);
     const fromRoute = parsePlanQueryParam(params.plan);
     if (fromRoute === 'unlimited') {
       setSelectedPlan('unlimited');
@@ -186,6 +179,10 @@ export default function PaywallScreen() {
   const showContinueSpinner =
     rcBusy && selectedPlan === 'unlimited' && !hasMamaScanUnlimited && isNativeStoreSupported;
   const visibleLastError = lastError && !isMissingRevenueCatApiKeyMessage(lastError) ? lastError : null;
+  const scanLockedHeroTitle =
+    childAgeYears == null
+      ? 'This product may not be ideal for your child'
+      : `This product may not be ideal for a ${childAgeYears}-year-old`;
 
   useEffect(() => {
     if (lastError && isMissingRevenueCatApiKeyMessage(lastError)) {
@@ -254,7 +251,7 @@ export default function PaywallScreen() {
                 <Text style={{ fontSize: 11, fontWeight: '800', color: M.cream, letterSpacing: 0.4 }}>ANALYSIS READY</Text>
               </View>
               <Text style={{ marginTop: 12, fontSize: 20, lineHeight: 27, color: M.text, fontWeight: '800' }}>
-                This product may not be ideal for toddlers
+                {scanLockedHeroTitle}
               </Text>
               <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: M.textBody, fontWeight: '700' }}>
                 Contains ingredients some parents try to avoid.
@@ -296,16 +293,9 @@ export default function PaywallScreen() {
               }}
             >
               <Text style={{ fontSize: 16, fontWeight: '800', color: M.text }}>Unlock full analysis</Text>
-              <View style={{ marginTop: 14, gap: 10 }}>
-                {scanLockedBenefits.map((item) => (
-                  <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Text style={{ width: 24, fontSize: 17 }}>{item.icon}</Text>
-                    <Text style={{ flex: 1, fontSize: 15, lineHeight: 22, color: M.textBody, fontWeight: '700' }}>
-                      {item.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={{ marginTop: 10, fontSize: 15, lineHeight: 22, color: M.textBody, fontWeight: '700' }}>
+                {"See if it's safe before you give it to your child"}
+              </Text>
 
               <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: M.line }}>
                 <View
