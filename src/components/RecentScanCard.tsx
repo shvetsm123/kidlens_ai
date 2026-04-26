@@ -51,6 +51,7 @@ function cardToneForVerdict(verdict: RecentScan['verdict']): { bg: string; borde
 const ACTION_WIDTH = 90;
 const ACTION_THRESHOLD = ACTION_WIDTH / 2;
 const VELOCITY_THRESHOLD = 700;
+const ACTION_FADE_START = 20;
 
 function RecentScanCardBody({ scan }: { scan: RecentScan }) {
   return (
@@ -76,15 +77,20 @@ function RecentScanCardBody({ scan }: { scan: RecentScan }) {
 
 export function RecentScanCard({ scan, onPress, onSave, onDelete }: RecentScanCardProps) {
   const [thumbFailed, setThumbFailed] = useState(false);
+  const [openAction, setOpenAction] = useState<'save' | 'delete' | null>(null);
   const translateX = useRef(new Animated.Value(0)).current;
   const openOffsetRef = useRef(0);
 
   useEffect(() => {
     setThumbFailed(false);
-  }, [scan.id, scan.imageUrl]);
+    setOpenAction(null);
+    openOffsetRef.current = 0;
+    translateX.setValue(0);
+  }, [scan.id, scan.imageUrl, translateX]);
 
   const animateTo = (value: number) => {
     openOffsetRef.current = value;
+    setOpenAction(value > 0 ? 'save' : value < 0 ? 'delete' : null);
     Animated.spring(translateX, {
       toValue: value,
       useNativeDriver: true,
@@ -136,6 +142,16 @@ export function RecentScanCard({ scan, onPress, onSave, onDelete }: RecentScanCa
 
   const showThumb = hasProductImageUrl(scan.imageUrl) && !thumbFailed;
   const tone = cardToneForVerdict(scan.verdict);
+  const saveOpacity = translateX.interpolate({
+    inputRange: [0, ACTION_FADE_START, ACTION_WIDTH],
+    outputRange: [0, 0, 1],
+    extrapolate: 'clamp',
+  });
+  const deleteOpacity = translateX.interpolate({
+    inputRange: [-ACTION_WIDTH, -ACTION_FADE_START, 0],
+    outputRange: [1, 0, 0],
+    extrapolate: 'clamp',
+  });
 
   const baseStyle = (pressed: boolean) => ({
     borderRadius: M.r18,
@@ -149,7 +165,8 @@ export function RecentScanCard({ scan, onPress, onSave, onDelete }: RecentScanCa
 
   return (
     <View style={{ alignSelf: 'stretch', width: '100%', overflow: 'hidden', borderRadius: M.r18 }}>
-      <View
+      <Animated.View
+        pointerEvents={openAction === 'save' ? 'auto' : 'none'}
         style={{
           position: 'absolute',
           top: 0,
@@ -160,14 +177,16 @@ export function RecentScanCard({ scan, onPress, onSave, onDelete }: RecentScanCa
           alignItems: 'center',
           justifyContent: 'center',
           gap: 6,
+          opacity: saveOpacity,
         }}
       >
         <Pressable onPress={triggerSave} style={{ alignItems: 'center', justifyContent: 'center', flex: 1, width: '100%' }}>
           <Ionicons name="heart" size={24} color="#2D7A4B" />
           <Text style={{ marginTop: 5, fontSize: 13, fontWeight: '800', color: '#2D7A4B' }}>Save</Text>
         </Pressable>
-      </View>
-      <View
+      </Animated.View>
+      <Animated.View
+        pointerEvents={openAction === 'delete' ? 'auto' : 'none'}
         style={{
           position: 'absolute',
           top: 0,
@@ -177,13 +196,14 @@ export function RecentScanCard({ scan, onPress, onSave, onDelete }: RecentScanCa
           backgroundColor: '#F3D8D8',
           alignItems: 'center',
           justifyContent: 'center',
+          opacity: deleteOpacity,
         }}
       >
         <Pressable onPress={triggerDelete} style={{ alignItems: 'center', justifyContent: 'center', flex: 1, width: '100%' }}>
           <Ionicons name="trash" size={24} color="#A33D3D" />
           <Text style={{ marginTop: 5, fontSize: 13, fontWeight: '800', color: '#A33D3D' }}>Delete</Text>
         </Pressable>
-      </View>
+      </Animated.View>
       <PanGestureHandler
         activeOffsetX={[-10, 10]}
         failOffsetY={[-8, 8]}
