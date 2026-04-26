@@ -24,7 +24,8 @@ import {
   restorePurchases as restorePurchasesInternal,
 } from '../lib/revenuecat/revenueCatService';
 import { syncRevenueCatDerivedPlanToSupabase } from '../lib/revenuecat/syncPlanToSupabase';
-import { setPlan } from '../lib/storage';
+import { ensureSupabaseProfileLocal, getCachedSupabaseProfileId, setPlan } from '../lib/storage';
+import { getOrCreateDeviceId } from '../lib/device';
 
 type RevenueCatContextValue = {
   isNativeStoreSupported: boolean;
@@ -42,7 +43,7 @@ type RevenueCatContextValue = {
   refreshOfferings: () => Promise<void>;
   restorePurchases: () => Promise<CustomerInfo>;
   purchasePackage: (pkg: PurchasesPackage) => Promise<CustomerInfo>;
-  purchaseMonthlyPackage: () => Promise<CustomerInfo>;
+  purchasePackageByType: (type: 'monthly' | 'yearly') => Promise<CustomerInfo>;
   presentCustomerCenter: () => Promise<void>;
   /** Combine RevenueCat entitlement with locally stored plan (for web and pre-bootstrap native). */
   gatedPlan: (localPlan: Plan) => Plan;
@@ -50,11 +51,69 @@ type RevenueCatContextValue = {
 
 const RevenueCatContext = createContext<RevenueCatContextValue | null>(null);
 
-function selectMonthlyOrFirstPackage(offerings: PurchasesOfferings): PurchasesPackage | null {
-  const packages = offerings.current?.availablePackages?.length
-    ? offerings.current.availablePackages
-    : Object.values(offerings.all).flatMap((offering) => offering.availablePackages);
-  return packages.find((pkg) => pkg.packageType === Purchases.PACKAGE_TYPE.MONTHLY) ?? packages[0] ?? null;
+type PurchasesPackageType = 'monthly' | 'yearly';
+
+let revenueCatLoginPromise: Promise<CustomerInfo | null> | null = null;
+let revenueCatLoggedInAppUserId: string | null = null;
+
+function getPackagesFromOfferings(offerings: PurchasesOfferings): PurchasesPackage[] {
+  const packages = [
+    ...(offerings.current?.availablePackages ?? []),
+    ...Object.values(offerings.all).flatMap((offering) => offering.availablePackages),
+  ];
+  return Array.from(new Map(packages.map((pkg) => [`${pkg.identifier}:${pkg.product.identifier}`, pkg])).values());
+}
+
+function packageMatchesType(pkg: PurchasesPackage, type: PurchasesPackageType): boolean {
+  const identifiers = [pkg.identifier, pkg.product.identifier].map((id) => id.toLowerCase());
+  const targets = type === 'monthly' ? ['monthly', 'unlimited_monthly'] : ['yearly', 'unlimited_yearly'];
+  return identifiers.some((id) => targets.some((target) => id.includes(target)));
+}
+
+function selectPackageByType(offerings: PurchasesOfferings, type: PurchasesPackageType): PurchasesPackage | null {
+  const current = offerings.current;
+  const preferredPackage = type === 'monthly' ? current?.monthly : current?.annual;
+  if (preferredPackage) {
+    return preferredPackage;
+  }
+  return getPackagesFromOfferings(offerings).find((pkg) => packageMatchesType(pkg, type)) ?? null;
+}
+
+async function resolveRevenueCatAppUserId(): Promise<{ appUserId: string; source: 'profile' | 'device' }> {
+  await ensureSupabaseProfileLocal();
+  const profileId = await getCachedSupabaseProfileId();
+  if (profileId) {
+    return { appUserId: profileId, source: 'profile' };
+  }
+  return { appUserId: await getOrCreateDeviceId(), source: 'device' };
+}
+
+async function logInRevenueCatWithLocalIdentity(): Promise<CustomerInfo | null> {
+  if (revenueCatLoginPromise) {
+    return revenueCatLoginPromise;
+  }
+
+  revenueCatLoginPromise = (async () => {
+    const { appUserId, source } = await resolveRevenueCatAppUserId();
+    if (revenueCatLoggedInAppUserId === appUserId) {
+      return null;
+    }
+
+    console.log('revenuecat_login_started', { source });
+    try {
+      const { customerInfo: nextCustomerInfo } = await Purchases.logIn(appUserId);
+      revenueCatLoggedInAppUserId = appUserId;
+      console.log('revenuecat_login_success', { source });
+      return nextCustomerInfo;
+    } catch (e) {
+      console.warn('revenuecat_login_failed', purchasesErrorMessage(e));
+      return null;
+    } finally {
+      revenueCatLoginPromise = null;
+    }
+  })();
+
+  return revenueCatLoginPromise;
 }
 
 async function syncLocalPlanWithCustomerInfo(info: CustomerInfo): Promise<void> {
@@ -89,7 +148,8 @@ export function RevenueCatProvider({ children }: { children: ReactNode }) {
     try {
       await configureRevenueCat();
       setIsConfigured(true);
-      const info = await fetchCustomerInfo();
+      const loggedInInfo = await logInRevenueCatWithLocalIdentity();
+      const info = loggedInInfo ?? (await fetchCustomerInfo());
       setCustomerInfo(info);
       setConfigureError(null);
       await syncLocalPlanWithCustomerInfo(info);
@@ -169,14 +229,14 @@ export function RevenueCatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const purchaseMonthlyPackage = useCallback(async () => {
+  const purchasePackageByType = useCallback(async (type: PurchasesPackageType) => {
     setLastError(null);
     try {
       await configureRevenueCat();
       setIsConfigured(true);
-      const nextOfferings = await fetchOfferings();
+      const nextOfferings = await Purchases.getOfferings();
       setOfferings(nextOfferings);
-      const selectedPackage = selectMonthlyOrFirstPackage(nextOfferings);
+      const selectedPackage = selectPackageByType(nextOfferings, type);
       if (!selectedPackage) {
         throw new Error('No subscription packages are available right now. Please try again.');
       }
@@ -227,7 +287,7 @@ export function RevenueCatProvider({ children }: { children: ReactNode }) {
       refreshOfferings,
       restorePurchases,
       purchasePackage,
-      purchaseMonthlyPackage,
+      purchasePackageByType,
       presentCustomerCenter,
       gatedPlan,
     }),
@@ -246,7 +306,7 @@ export function RevenueCatProvider({ children }: { children: ReactNode }) {
       refreshOfferings,
       restorePurchases,
       purchasePackage,
-      purchaseMonthlyPackage,
+      purchasePackageByType,
       presentCustomerCenter,
       gatedPlan,
     ],

@@ -6,11 +6,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { M } from '../constants/mamaTheme';
 import { getAppLanguage, t } from '../src/lib/i18n';
-import { hasKidlensUnlimitedAccess } from '../src/lib/revenuecat/entitlements';
+import { KIDLENS_UNLIMITED_ENTITLEMENT_ID, hasKidlensUnlimitedAccess } from '../src/lib/revenuecat/entitlements';
 import { isUserCancelledPurchaseError, purchasesErrorMessage } from '../src/lib/revenuecat/revenueCatService';
 import { getChildAgeProfile, getPlan, setPlan } from '../src/lib/storage';
 import { useRevenueCat } from '../src/providers/RevenueCatProvider';
 import type { Plan } from '../src/types/preferences';
+
+type BillingPlan = 'monthly' | 'yearly';
+
+const billingPlanOptions: {
+  type: BillingPlan;
+  title: string;
+  price: string;
+  subtext: string;
+  badge?: string;
+}[] = [
+  {
+    type: 'yearly',
+    title: 'Yearly',
+    price: '$79.99/year',
+    subtext: '$6.67/month · Save 33%',
+    badge: 'BEST VALUE',
+  },
+  {
+    type: 'monthly',
+    title: 'Monthly',
+    price: '$9.99/month',
+    subtext: 'Flexible monthly access',
+  },
+];
 
 function parsePlanQueryParam(raw: string | string[] | undefined): Plan | null {
   const v = Array.isArray(raw) ? raw[0] : raw;
@@ -31,19 +55,53 @@ function isMissingRevenueCatApiKeyMessage(message: string): boolean {
   return lower.includes('missing') && lower.includes('revenuecat') && lower.includes('api') && lower.includes('key');
 }
 
+function detectBillingPlan(productIdentifier: string | null | undefined): 'Monthly' | 'Yearly' | null {
+  if (!productIdentifier) {
+    return null;
+  }
+  const lower = productIdentifier.toLowerCase();
+  if (lower.includes('yearly') || lower.includes('annual')) {
+    return 'Yearly';
+  }
+  if (lower.includes('monthly') || lower.includes('month')) {
+    return 'Monthly';
+  }
+  return null;
+}
+
+function formatSubscriptionDate(rawDate: string | null | undefined): string | null {
+  if (!rawDate) {
+    return null;
+  }
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 export default function PaywallScreen() {
   const lang = getAppLanguage();
   const params = useLocalSearchParams<{ plan?: string | string[]; source?: string | string[] }>();
   const source = Array.isArray(params.source) ? params.source[0] : params.source;
   const isScanLockedSource = source === 'scan_locked';
   const [currentPlan, setCurrentPlan] = useState<Plan>('free');
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('unlimited');
+  const [selectedAppPlan, setSelectedAppPlan] = useState<Plan>('unlimited');
+  const [selectedPlan, setSelectedPlan] = useState<BillingPlan>('yearly');
   const [childAgeYears, setChildAgeYears] = useState<number | null>(null);
   const [rcBusy, setRcBusy] = useState(false);
   const {
     isNativeStoreSupported,
+    customerInfo,
     restorePurchases,
-    purchaseMonthlyPackage,
+    purchasePackageByType,
     refreshCustomerInfo,
     lastError,
     hasKidlensUnlimited,
@@ -61,8 +119,9 @@ export default function PaywallScreen() {
     ],
     [],
   );
-  const upgradeOffer = useMemo(() => ['Then $9.99/month', 'Cancel anytime'], []);
-  const scanLockedOffer = useMemo(() => ['Then $9.99/month', 'Cancel anytime'], []);
+  const trialBillingLine = selectedPlan === 'yearly' ? 'Then $79.99/year' : 'Then $9.99/month';
+  const upgradeOffer = useMemo(() => [trialBillingLine, 'Cancel anytime'], [trialBillingLine]);
+  const scanLockedOffer = useMemo(() => [trialBillingLine, 'Cancel anytime'], [trialBillingLine]);
   const scanLockedPreview = useMemo(
     () => [
       '⚠️ High sugar level detected',
@@ -78,13 +137,13 @@ export default function PaywallScreen() {
     setChildAgeYears(Number.isFinite(ageProfile.completedWholeYears) ? ageProfile.completedWholeYears : null);
     const fromRoute = parsePlanQueryParam(params.plan);
     if (fromRoute === 'unlimited') {
-      setSelectedPlan('unlimited');
+      setSelectedAppPlan('unlimited');
     } else if (fromRoute === 'free') {
-      setSelectedPlan('free');
+      setSelectedAppPlan('free');
     } else if (p === 'unlimited') {
-      setSelectedPlan('unlimited');
+      setSelectedAppPlan('unlimited');
     } else {
-      setSelectedPlan('unlimited');
+      setSelectedAppPlan('unlimited');
     }
   }, [params.plan]);
 
@@ -106,11 +165,11 @@ export default function PaywallScreen() {
   };
 
   const continueDisabled =
-    (selectedPlan === 'free' && currentPlan === 'free' && isEffectivelyFree) ||
-    (selectedPlan === 'unlimited' && hasKidlensUnlimited && currentPlan === 'unlimited');
+    (selectedAppPlan === 'free' && currentPlan === 'free' && isEffectivelyFree) ||
+    (selectedAppPlan === 'unlimited' && hasKidlensUnlimited && currentPlan === 'unlimited');
 
   const onContinue = async () => {
-    if (selectedPlan === 'free') {
+    if (selectedAppPlan === 'free') {
       await setPlan('free');
       void refreshCustomerInfo();
       router.back();
@@ -139,7 +198,7 @@ export default function PaywallScreen() {
 
     setRcBusy(true);
     try {
-      const info = await purchaseMonthlyPackage();
+      const info = await purchasePackageByType(selectedPlan);
       await refreshCustomerInfo();
       if (hasKidlensUnlimitedAccess(info)) {
         if (isScanLockedSource) {
@@ -179,18 +238,104 @@ export default function PaywallScreen() {
   }, [isNativeStoreSupported, restorePurchases, load, isScanLockedSource]);
 
   const showContinueSpinner =
-    rcBusy && selectedPlan === 'unlimited' && !hasKidlensUnlimited && isNativeStoreSupported;
+    rcBusy && selectedAppPlan === 'unlimited' && !hasKidlensUnlimited && isNativeStoreSupported;
   const visibleLastError = lastError && !isMissingRevenueCatApiKeyMessage(lastError) ? lastError : null;
   const scanLockedHeroTitle =
     childAgeYears == null
       ? 'This product may not be ideal for your child'
       : `This product may not be ideal for a ${childAgeYears}-year-old`;
+  const activeUnlimitedEntitlement = customerInfo?.entitlements.active[KIDLENS_UNLIMITED_ENTITLEMENT_ID] ?? null;
+  const detectedCurrentPlan = detectBillingPlan(activeUnlimitedEntitlement?.productIdentifier);
+  const subscriptionDate = formatSubscriptionDate(activeUnlimitedEntitlement?.expirationDate);
+  const subscriptionDateLabel = activeUnlimitedEntitlement?.willRenew === false ? 'Expires on' : 'Renews on';
 
   useEffect(() => {
     if (lastError && isMissingRevenueCatApiKeyMessage(lastError)) {
       console.warn('[paywall] RevenueCat API key is missing; hiding setup warning from UI.');
     }
   }, [lastError]);
+
+  if (hasKidlensUnlimited) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: M.bgPage }} edges={['top', 'left', 'right']}>
+        <StatusBar style="dark" />
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: 24,
+            paddingTop: 12,
+            paddingBottom: 32,
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={{ marginTop: 16, fontSize: 30, lineHeight: 36, color: M.text, fontWeight: '700' }}>
+            Your subscription
+          </Text>
+
+          <View
+            style={{
+              marginTop: 18,
+              paddingVertical: 18,
+              paddingHorizontal: 18,
+              borderRadius: M.r20,
+              backgroundColor: M.sageWash,
+              borderWidth: 1,
+              borderColor: M.lineSage,
+              ...M.shadowSoft,
+            }}
+          >
+            <Text style={{ fontSize: 20, lineHeight: 27, color: M.text, fontWeight: '800' }}>Unlimited access</Text>
+            <View style={{ marginTop: 16, gap: 10 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 14 }}>
+                <Text style={{ flex: 1, fontSize: 15, lineHeight: 21, color: M.textBody, fontWeight: '700' }}>Current plan</Text>
+                <Text style={{ fontSize: 15, lineHeight: 21, color: M.text, fontWeight: '800' }}>
+                  {detectedCurrentPlan ?? 'Active'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 14 }}>
+                <Text style={{ flex: 1, fontSize: 15, lineHeight: 21, color: M.textBody, fontWeight: '700' }}>
+                  {subscriptionDate ? subscriptionDateLabel : 'Status'}
+                </Text>
+                <Text style={{ fontSize: 15, lineHeight: 21, color: M.text, fontWeight: '800' }}>
+                  {subscriptionDate ?? 'Active'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {isNativeStoreSupported ? (
+            <>
+              <Pressable
+                onPress={() => router.push('/customer-center' as Href)}
+                disabled={rcBusy}
+                style={{
+                  marginTop: 22,
+                  backgroundColor: rcBusy ? M.textSoft : M.inkButton,
+                  borderRadius: M.r16,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  ...(!rcBusy ? M.shadowSoft : {}),
+                }}
+              >
+                <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>Manage subscription</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => void onRestorePurchases()}
+                disabled={rcBusy}
+                style={{ marginTop: 14, paddingVertical: 12, alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', color: M.textMuted }}>Restore purchases</Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          <Pressable onPress={goBack} style={{ marginTop: 10, paddingVertical: 14, alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: M.textBody }}>Back</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: M.bgPage }} edges={['top', 'left', 'right']}>
@@ -397,11 +542,79 @@ export default function PaywallScreen() {
           </>
         )}
 
+        <View style={{ marginTop: 18, gap: 10 }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: M.text }}>Choose your plan</Text>
+          <View style={{ gap: 8 }}>
+            {billingPlanOptions.map((option) => {
+              const isSelected = selectedPlan === option.type;
+              return (
+                <Pressable
+                  key={option.type}
+                  onPress={() => setSelectedPlan(option.type)}
+                  disabled={rcBusy}
+                  style={{
+                    borderRadius: M.r16,
+                    borderWidth: isSelected ? 2 : 1,
+                    borderColor: isSelected ? M.sageDeep : M.line,
+                    backgroundColor: isSelected ? M.sageWash : M.bgCard,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    ...(isSelected ? M.shadowSoft : {}),
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 999,
+                      borderWidth: 2,
+                      borderColor: isSelected ? M.sageDeep : M.lineStrong,
+                      backgroundColor: isSelected ? M.sageDeep : M.bgCard,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {isSelected ? <Text style={{ fontSize: 13, color: M.cream, fontWeight: '900' }}>✓</Text> : null}
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: M.text }}>{option.title}</Text>
+                      {option.badge ? (
+                        <View
+                          style={{
+                            borderRadius: 999,
+                            backgroundColor: M.sageDeep,
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: M.cream, letterSpacing: 0.35 }}>{option.badge}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, fontWeight: '700', color: M.textMuted }}>
+                      {option.subtext}
+                    </Text>
+                  </View>
+
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: M.textBody }}>{option.price}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         <Pressable
           onPress={() => void onContinue()}
           disabled={continueDisabled || rcBusy}
           style={{
-            marginTop: 28,
+            marginTop: 18,
             backgroundColor: continueDisabled || rcBusy ? M.textSoft : M.inkButton,
             borderRadius: M.r16,
             paddingVertical: 16,
@@ -414,11 +627,7 @@ export default function PaywallScreen() {
         >
           {showContinueSpinner ? <ActivityIndicator color={M.cream} /> : null}
           <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>
-            {showContinueSpinner
-              ? 'Starting trial...'
-              : continueDisabled
-                ? t('pay.currentSelection', lang)
-                : 'Start Free Trial — No Charge Today'}
+            {showContinueSpinner ? 'Starting trial...' : 'Start Free Trial — No Charge Today'}
           </Text>
         </Pressable>
 
