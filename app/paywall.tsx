@@ -54,11 +54,10 @@ export default function PaywallScreen() {
 
   const upgradeBenefits = useMemo(
     () => [
-      'Unlimited scans',
-      'Full ingredient analysis',
-      'Kid-safe recommendations',
-      'Personalized by age',
-      'Save favorite products',
+      { icon: '∞', label: 'Unlimited scans', bg: M.sageWash },
+      { icon: '🔍', label: 'Full ingredient analysis', bg: '#F3EADB' },
+      { icon: '👶', label: 'Kid-safe recommendations', bg: '#EFE7F6' },
+      { icon: '⭐', label: 'Save favorite products', bg: '#F8ECDD' },
     ],
     [],
   );
@@ -287,29 +286,68 @@ export default function PaywallScreen() {
             <View
               style={{
                 marginTop: 22,
-                padding: 20,
-                borderRadius: M.r22,
-                backgroundColor: M.bgCard,
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                borderRadius: M.r20,
+                backgroundColor: M.bgCardMuted,
                 borderWidth: 1,
-                borderColor: M.gold,
-                ...M.shadowCard,
+                borderColor: M.line,
+                ...M.shadowSoft,
               }}
             >
-              <Text style={{ fontSize: 15, fontWeight: '800', color: M.textMuted }}>Unlimited includes</Text>
-              <View style={{ marginTop: 14, gap: 9 }}>
-                {upgradeBenefits.map((line) => (
-                  <Text key={line} style={{ fontSize: 16, lineHeight: 23, color: M.textBody, fontWeight: '700' }}>
-                    • {line}
-                  </Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: M.text }}>Everything you need</Text>
+              <View style={{ marginTop: 16, gap: 12 }}>
+                {upgradeBenefits.map((item) => (
+                  <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+                    <View
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 999,
+                        backgroundColor: item.bg,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: M.sageDeep }}>{item.icon}</Text>
+                    </View>
+                    <Text style={{ flex: 1, fontSize: 16, lineHeight: 23, color: M.textBody, fontWeight: '700' }}>
+                      {item.label}
+                    </Text>
+                  </View>
                 ))}
               </View>
+            </View>
 
-              <View style={{ marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: M.line, gap: 8 }}>
-                {upgradeOffer.map((line) => (
-                  <Text key={line} style={{ fontSize: 16, lineHeight: 23, color: M.text, fontWeight: '800' }}>
-                    • {line}
-                  </Text>
-                ))}
+            <View
+              style={{
+                marginTop: 14,
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                borderRadius: M.r20,
+                backgroundColor: M.sageWash,
+                borderWidth: 1,
+                borderColor: M.lineSage,
+                ...M.shadowSoft,
+              }}
+            >
+              <View
+                style={{
+                  alignSelf: 'flex-start',
+                  borderRadius: 999,
+                  backgroundColor: M.sageDeep,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  marginBottom: 12,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '800', color: M.cream, letterSpacing: 0.4 }}>3 DAYS FREE</Text>
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: M.text }}>Start free today</Text>
+              <View style={{ marginTop: 16, gap: 12 }}>
+                <Text style={{ fontSize: 18, lineHeight: 25, color: M.text, fontWeight: '800' }}>{upgradeOffer[0]}</Text>
+                <Text style={{ fontSize: 15, lineHeight: 22, color: M.sageDeep, fontWeight: '700' }}>{upgradeOffer[1]}</Text>
+                <Text style={{ fontSize: 15, lineHeight: 22, color: M.textMuted, fontWeight: '700' }}>{upgradeOffer[2]}</Text>
               </View>
             </View>
           </>
@@ -344,17 +382,15 @@ export default function PaywallScreen() {
         >
           {showContinueSpinner ? <ActivityIndicator color={M.cream} /> : null}
           <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>
-            {continueDisabled ? t('pay.currentSelection', lang) : 'Start Free Trial'}
+            {continueDisabled
+              ? t('pay.currentSelection', lang)
+              : isScanLockedSource
+                ? 'Start Free Trial'
+                : 'Start Free Trial — No Charge Today'}
           </Text>
         </Pressable>
 
         {isScanLockedSource ? (
-          <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 18, color: M.textMuted, textAlign: 'center', fontWeight: '700' }}>
-            No charge today
-          </Text>
-        ) : null}
-
-        {!isScanLockedSource ? (
           <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 18, color: M.textMuted, textAlign: 'center', fontWeight: '700' }}>
             No charge today
           </Text>
