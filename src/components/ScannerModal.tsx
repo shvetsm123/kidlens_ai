@@ -3,7 +3,7 @@ import { CameraView } from 'expo-camera';
 import type { PermissionResponse } from 'expo-modules-core';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getAppLanguage, t } from '../lib/i18n';
 import { ScannerFrame } from './ScannerFrame';
@@ -36,6 +36,7 @@ export function ScannerModal({
   onRequestPermission,
 }: ScannerModalProps) {
   const lang = getAppLanguage();
+  const insets = useSafeAreaInsets();
   const granted = cameraPermission?.granted === true;
   const [torchOn, setTorchOn] = useState(false);
 
@@ -61,60 +62,30 @@ export function ScannerModal({
       {...(Platform.OS === 'ios' && onFullyDismissed ? { onDismiss: onFullyDismissed } : {})}
     >
       {visible ? (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#1A1510' }} edges={['top', 'left', 'right']}>
+        <View style={{ flex: 1, backgroundColor: '#1A1510' }}>
           <View style={{ flex: 1 }}>
-            <Pressable
-              onPress={onClose}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 12,
-                zIndex: 20,
-                width: 40,
-                height: 40,
-                borderRadius: 14,
-                backgroundColor: 'rgba(255,253,248,0.14)',
-                borderWidth: 1,
-                borderColor: 'rgba(255,253,248,0.22)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="close" size={24} color="#FFFDF8" />
-            </Pressable>
-
-            {granted && !dailyLimitReached ? (
-              <Pressable
-                onPress={toggleTorch}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                accessibilityRole="button"
-                accessibilityLabel={torchOn ? t('scanner.a11y.torchOff', lang) : t('scanner.a11y.torchOn', lang)}
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 12,
-                  zIndex: 20,
-                  width: 40,
-                  height: 40,
-                  borderRadius: 14,
-                  backgroundColor: torchOn ? 'rgba(255,253,248,0.28)' : 'rgba(255,253,248,0.14)',
-                  borderWidth: 1,
-                  borderColor: torchOn ? 'rgba(255,253,248,0.42)' : 'rgba(255,253,248,0.22)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Ionicons
-                  name={torchOn ? 'flashlight' : 'flashlight-outline'}
-                  size={22}
-                  color={torchOn ? '#FFFDF8' : 'rgba(255,253,248,0.92)'}
-                />
-              </Pressable>
-            ) : null}
-
             {cameraPermission === null ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{
+                    position: 'absolute',
+                    top: insets.top + 8,
+                    left: 12,
+                    zIndex: 20,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 14,
+                    backgroundColor: 'rgba(255,253,248,0.14)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,253,248,0.22)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="#FFFDF8" />
+                </Pressable>
                 <Text style={{ color: 'rgba(255,253,248,0.75)', fontSize: 15 }}>{t('scanner.loadingCamera', lang)}</Text>
               </View>
             ) : granted ? (
@@ -127,8 +98,69 @@ export function ScannerModal({
                   barcodeScannerSettings={{ barcodeTypes: [...COMMON_PRODUCT_BARCODE_TYPES] as never }}
                   onBarcodeScanned={canReadCodes ? onBarcodeScanned : undefined}
                 />
-                <ScannerFrame />
-                {dailyLimitReached ? (
+                <View
+                  pointerEvents="box-none"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    left: 0,
+                  }}
+                >
+                  <Pressable
+                    onPress={onClose}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={{
+                      position: 'absolute',
+                      top: insets.top + 8,
+                      left: 12,
+                      zIndex: 20,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 14,
+                      backgroundColor: 'rgba(255,253,248,0.14)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,253,248,0.22)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="close" size={24} color="#FFFDF8" />
+                  </Pressable>
+
+                  {!dailyLimitReached ? (
+                    <Pressable
+                      onPress={toggleTorch}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={torchOn ? t('scanner.a11y.torchOff', lang) : t('scanner.a11y.torchOn', lang)}
+                      style={{
+                        position: 'absolute',
+                        top: insets.top + 8,
+                        right: 12,
+                        zIndex: 20,
+                        width: 40,
+                        height: 40,
+                        borderRadius: 14,
+                        backgroundColor: torchOn ? 'rgba(255,253,248,0.28)' : 'rgba(255,253,248,0.14)',
+                        borderWidth: 1,
+                        borderColor: torchOn ? 'rgba(255,253,248,0.42)' : 'rgba(255,253,248,0.22)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons
+                        name={torchOn ? 'flashlight' : 'flashlight-outline'}
+                        size={22}
+                        color={torchOn ? '#FFFDF8' : 'rgba(255,253,248,0.92)'}
+                      />
+                    </Pressable>
+                  ) : null}
+
+                  <ScannerFrame />
+
+                  {dailyLimitReached ? (
                   <Pressable
                     onPress={onDailyLimitPress}
                     style={{
@@ -178,10 +210,31 @@ export function ScannerModal({
                       <Text style={{ fontSize: 14, fontWeight: '700', color: '#2C251F' }}>{t('scanner.viewPlans', lang)}</Text>
                     </View>
                   </Pressable>
-                ) : null}
+                  ) : null}
+                </View>
               </View>
             ) : (
               <View style={{ flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' }}>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{
+                    position: 'absolute',
+                    top: insets.top + 8,
+                    left: 12,
+                    zIndex: 20,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 14,
+                    backgroundColor: 'rgba(255,253,248,0.14)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,253,248,0.22)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="#FFFDF8" />
+                </Pressable>
                 <Text style={{ fontSize: 20, color: '#FFFDF8', fontWeight: '700', textAlign: 'center' }}>
                   {t('scanner.cameraNeeded', lang)}
                 </Text>
@@ -211,7 +264,7 @@ export function ScannerModal({
               </View>
             )}
           </View>
-        </SafeAreaView>
+        </View>
       ) : null}
     </Modal>
   );

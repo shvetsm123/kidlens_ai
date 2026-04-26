@@ -13,12 +13,13 @@ export function ScannerFrame() {
         right: 0,
         bottom: 0,
         left: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
       }}
     >
       <View
         style={{
+          position: 'absolute',
+          top: '30%',
+          alignSelf: 'center',
           width: '76%',
           height: '52%',
           borderRadius: 18,
@@ -29,7 +30,9 @@ export function ScannerFrame() {
       />
       <Text
         style={{
-          marginTop: 14,
+          position: 'absolute',
+          bottom: 120,
+          alignSelf: 'center',
           color: '#F8F6F2',
           fontSize: 13,
           fontWeight: '600',
