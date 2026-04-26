@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { formatIngredientNameForLang, polishIngredientNote } from '../lib/ingredientDisplay';
@@ -7,10 +7,9 @@ import { avoidLabel, getAppLanguage, humanizePreferenceMatchLine, t } from '../l
 import { localizeResultLine } from '../lib/localizeScanText';
 import { AVOID_PREFERENCE_IDS, type AvoidPreference, type Plan } from '../types/preferences';
 import type { AppLanguage } from '../lib/deviceLanguage';
-import type { RecentScan } from '../types/scan';
+import type { RecentScan, Verdict } from '../types/scan';
 import { M } from '../../constants/mamaTheme';
 import { selectDistinctDisplayReasons } from '../lib/scanResultAntiRepeat';
-import { VerdictBadge } from './VerdictBadge';
 type ResultTab = 'general' | 'ingredients';
 
 function preferenceMatchDisplayLine(line: string, lang: AppLanguage): string {
@@ -23,46 +22,114 @@ function preferenceMatchDisplayLine(line: string, lang: AppLanguage): string {
 
 type RowUi = { key: string; name: string; note: string };
 
+const VERDICT_UI: Record<
+  Verdict,
+  { labelKey: 'verdict.good' | 'verdict.sometimes' | 'verdict.avoid' | 'verdict.unknown'; bg: string; border: string; text: string }
+> = {
+  good: { labelKey: 'verdict.good', bg: M.sageWash, border: M.lineSage, text: '#245335' },
+  sometimes: { labelKey: 'verdict.sometimes', bg: '#F8ECDD', border: '#E3C18B', text: '#6B4310' },
+  avoid: { labelKey: 'verdict.avoid', bg: '#FCEAEA', border: '#E1BDBD', text: '#6F2525' },
+  unknown: { labelKey: 'verdict.unknown', bg: '#EBE8E4', border: '#D6D1CB', text: M.textBody },
+};
+
+function ResultCard({
+  title,
+  children,
+  tone = 'neutral',
+}: {
+  title: string;
+  children: ReactNode;
+  tone?: 'neutral' | 'mint' | 'red' | 'yellow';
+}) {
+  const bg = tone === 'mint' ? M.sageWash : tone === 'red' ? '#FCEAEA' : tone === 'yellow' ? '#F8ECDD' : M.bgCardMuted;
+  const border = tone === 'mint' ? M.lineSage : tone === 'red' ? '#E1BDBD' : tone === 'yellow' ? '#E3C18B' : M.line;
+  return (
+    <View
+      style={{
+        marginTop: 12,
+        borderRadius: M.r18,
+        backgroundColor: bg,
+        borderWidth: 1,
+        borderColor: border,
+        paddingVertical: 15,
+        paddingHorizontal: 15,
+      }}
+    >
+      <Text style={{ fontSize: 14, fontWeight: '800', color: M.text, letterSpacing: 0.1 }}>{title}</Text>
+      <View style={{ marginTop: 9 }}>{children}</View>
+    </View>
+  );
+}
+
+function ProminentVerdictBadge({ verdict }: { verdict: Verdict }) {
+  const lang = getAppLanguage();
+  const config = VERDICT_UI[verdict];
+  return (
+    <View
+      style={{
+        paddingHorizontal: 13,
+        paddingVertical: 8,
+        borderRadius: 999,
+        alignSelf: 'flex-start',
+        backgroundColor: config.bg,
+        borderWidth: 1,
+        borderColor: config.border,
+      }}
+    >
+      <Text style={{ fontSize: 13, fontWeight: '900', color: config.text }}>{t(config.labelKey, lang)}</Text>
+    </View>
+  );
+}
+
 function IngredientSection({
   title,
   rows,
   accent,
+  tone,
+  helper,
   isFirst,
 }: {
   title: string;
   rows: RowUi[];
   accent: string;
+  tone: 'good' | 'neutral' | 'red';
+  helper?: string;
   isFirst: boolean;
 }) {
   if (rows.length === 0) {
     return null;
   }
+  const bg = tone === 'good' ? M.sageWash : tone === 'red' ? '#FCEAEA' : M.bgCardMuted;
+  const border = tone === 'good' ? M.lineSage : tone === 'red' ? '#E1BDBD' : M.line;
   return (
-    <View style={{ marginTop: isFirst ? 14 : 24 }}>
+    <View
+      style={{
+        marginTop: isFirst ? 14 : 14,
+        backgroundColor: bg,
+        borderRadius: M.r18,
+        paddingVertical: 15,
+        paddingHorizontal: 15,
+        borderWidth: 1,
+        borderColor: border,
+        ...(tone === 'red' ? { borderWidth: 1.5 } : {}),
+      }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 }}>
-        <View style={{ width: 3, height: 17, borderRadius: 2, backgroundColor: accent }} />
+        <View style={{ width: 4, height: 20, borderRadius: 999, backgroundColor: accent }} />
         <Text style={{ fontSize: 15, fontWeight: '800', color: M.text, letterSpacing: 0.2 }}>{title}</Text>
       </View>
-      <View
-        style={{
-          backgroundColor: M.bgCardMuted,
-          borderRadius: M.r16,
-          paddingVertical: 15,
-          paddingHorizontal: 14,
-          borderWidth: 1,
-          borderColor: M.line,
-          borderLeftWidth: 3,
-          borderLeftColor: accent,
-        }}
-      >
-        <View style={{ gap: 18 }}>
-          {rows.map((row) => (
-            <View key={row.key}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: M.text, letterSpacing: 0.15 }}>{row.name}</Text>
-              <Text style={{ marginTop: 7, fontSize: 13, lineHeight: 20, color: M.textBody }}>{row.note}</Text>
-            </View>
-          ))}
-        </View>
+      {helper ? (
+        <Text style={{ marginBottom: 12, fontSize: 13, lineHeight: 18, color: M.textMuted, fontWeight: '600' }}>
+          {helper}
+        </Text>
+      ) : null}
+      <View style={{ gap: 16 }}>
+        {rows.map((row) => (
+          <View key={row.key}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: M.text, letterSpacing: 0.1 }}>{row.name}</Text>
+            <Text style={{ marginTop: 6, fontSize: 13, lineHeight: 20, color: M.textBody }}>{row.note}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -167,9 +234,10 @@ export function ScanResultModal({
       onPress={() => setTab(id)}
       style={{
         flex: 1,
-        paddingVertical: 10,
-        borderRadius: 11,
-        backgroundColor: tab === id ? M.cream : 'transparent',
+        paddingVertical: 11,
+        borderRadius: M.r14,
+        backgroundColor: tab === id ? M.white : 'transparent',
+        ...(tab === id ? M.shadowSoft : {}),
       }}
     >
       <Text
@@ -205,26 +273,41 @@ export function ScanResultModal({
         <View
           style={{
             borderRadius: M.r24,
-            backgroundColor: M.bgCard,
-            maxHeight: '88%',
+            backgroundColor: M.bgPage,
+            maxHeight: '90%',
             overflow: 'hidden',
             ...M.shadowCard,
           }}
         >
           <ScrollView
             contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingBottom: 22,
-              paddingTop: 20,
+              paddingHorizontal: 22,
+              paddingBottom: 24,
+              paddingTop: 22,
             }}
             keyboardShouldPersistTaps="handled"
           >
             {isUnknownNotFound ? (
               <>
-                <Text style={{ fontSize: 13, color: M.textSoft, fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
+                <View
+                  style={{
+                    alignSelf: 'flex-start',
+                    borderRadius: 999,
+                    backgroundColor: M.sageWash,
+                    borderWidth: 1,
+                    borderColor: M.lineSage,
+                    paddingHorizontal: 11,
+                    paddingVertical: 6,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: M.sageDeep, fontWeight: '800' }}>AI scan result</Text>
+                </View>
+                <Text style={{ marginTop: 9, fontSize: 12, lineHeight: 18, color: M.textMuted }}>
+                  AI can make mistakes. Use this as guidance, not medical advice.
+                </Text>
                 <Text
                   style={{
-                    marginTop: 14,
+                    marginTop: 16,
                     fontSize: 26,
                     lineHeight: 32,
                     color: M.text,
@@ -239,40 +322,29 @@ export function ScanResultModal({
                 <Text style={{ marginTop: 14, fontSize: 13, color: M.textMuted }}>
                   {t('result.barcodeLabel', lang)} {scan?.barcode ?? '-'}
                 </Text>
-                <View style={{ marginTop: 24, flexDirection: 'row', gap: 10 }}>
-                  <Pressable
-                    onPress={onClose}
-                    style={{
-                      flex: 1,
-                      borderRadius: 14,
-                      backgroundColor: M.bgChipSelected,
-                      alignItems: 'center',
-                      paddingVertical: 13,
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('common.close', lang)}</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={onScanAgain}
-                    style={{
-                      flex: 1,
-                      borderRadius: 14,
-                      backgroundColor: M.inkButton,
-                      alignItems: 'center',
-                      paddingVertical: 13,
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('result.scanAgain', lang)}</Text>
-                  </Pressable>
-                </View>
               </>
             ) : (
               <>
-                <Text style={{ fontSize: 13, color: M.textSoft, fontWeight: '600' }}>{t('common.scanResult', lang)}</Text>
+                <View
+                  style={{
+                    alignSelf: 'flex-start',
+                    borderRadius: 999,
+                    backgroundColor: M.sageWash,
+                    borderWidth: 1,
+                    borderColor: M.lineSage,
+                    paddingHorizontal: 11,
+                    paddingVertical: 6,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: M.sageDeep, fontWeight: '800' }}>AI scan result</Text>
+                </View>
+                <Text style={{ marginTop: 9, fontSize: 12, lineHeight: 18, color: M.textMuted }}>
+                  AI can make mistakes. Use this as guidance, not medical advice.
+                </Text>
                 {reuseNotice ? (
                   <View
                     style={{
-                      marginTop: 10,
+                      marginTop: 12,
                       paddingVertical: 8,
                       paddingHorizontal: 12,
                       borderRadius: 12,
@@ -288,7 +360,7 @@ export function ScanResultModal({
                 ) : null}
                 <View
                   style={{
-                    marginTop: 8,
+                    marginTop: 16,
                     flexDirection: 'row',
                     alignItems: 'flex-start',
                     justifyContent: 'space-between',
@@ -325,9 +397,9 @@ export function ScanResultModal({
                         borderRadius: 14,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: plan === 'unlimited' && isFavorited ? '#F8EDED' : M.bgChip,
+                        backgroundColor: plan === 'unlimited' && isFavorited ? '#FCEAEA' : M.bgChip,
                         borderWidth: 1,
-                        borderColor: plan === 'unlimited' && isFavorited ? '#E8C4C4' : M.line,
+                        borderColor: plan === 'unlimited' && isFavorited ? '#E1BDBD' : M.line,
                         opacity: favoriteDisabled ? 0.5 : 1,
                       }}
                     >
@@ -348,11 +420,11 @@ export function ScanResultModal({
 
                 <View
                   style={{
-                    marginTop: 14,
+                    marginTop: 20,
                     flexDirection: 'row',
-                    backgroundColor: M.bgCardMuted,
-                    borderRadius: M.r14,
-                    padding: 3,
+                    backgroundColor: M.bgChip,
+                    borderRadius: M.r16,
+                    padding: 4,
                     borderWidth: 1,
                     borderColor: M.line,
                   }}
@@ -363,34 +435,16 @@ export function ScanResultModal({
 
                 {tab === 'general' ? (
                   <>
-                    {scan ? (
-                      <View style={{ marginTop: 12 }}>
-                        <VerdictBadge verdict={scan.verdict} />
-                      </View>
-                    ) : null}
-
-                    <Text style={{ marginTop: 10, fontSize: 15, lineHeight: 22, color: M.textBody }}>
-                      {scan?.summary ? locLine(scan.summary) : ''}
-                    </Text>
+                    <ResultCard title="Main verdict" tone={scan?.verdict === 'good' ? 'mint' : scan?.verdict === 'avoid' ? 'red' : scan?.verdict === 'sometimes' ? 'yellow' : 'neutral'}>
+                      {scan ? <ProminentVerdictBadge verdict={scan.verdict} /> : null}
+                      <Text style={{ marginTop: 11, fontSize: 15, lineHeight: 22, color: M.textBody }}>
+                        {scan?.summary ? locLine(scan.summary) : ''}
+                      </Text>
+                    </ResultCard>
 
                     {showAvoidSection ? (
-                      <View
-                        style={{
-                          marginTop: 10,
-                          paddingVertical: 14,
-                          paddingHorizontal: 14,
-                          borderRadius: M.r14,
-                          backgroundColor: M.bgChip,
-                          borderWidth: 1,
-                          borderColor: M.lineStrong,
-                          borderLeftWidth: 4,
-                          borderLeftColor: M.gold,
-                          gap: 8,
-                        }}
-                      >
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: M.text, letterSpacing: 0.2 }}>
-                          {t('result.matchesAvoid', lang)}
-                        </Text>
+                      <ResultCard title={t('result.matchesAvoid', lang)} tone="yellow">
+                        <View style={{ gap: 8 }}>
                         {preferenceLines.map((line, index) => (
                           <Text
                             key={`${line}-${index}`}
@@ -399,36 +453,36 @@ export function ScanResultModal({
                             • {locLine(preferenceMatchDisplayLine(line, lang))}
                           </Text>
                         ))}
-                      </View>
+                        </View>
+                      </ResultCard>
                     ) : null}
 
-                    <View style={{ marginTop: showAvoidSection ? 12 : 14, gap: 8 }}>
-                      {displayReasons.map((reason, index) => (
-                        <Text key={`${reason}-${index}`} style={{ fontSize: 14, color: M.textBody, lineHeight: 20 }}>
-                          • {reason}
-                        </Text>
-                      ))}
-                    </View>
+                    {displayReasons.length > 0 ? (
+                      <ResultCard title="Key reasons">
+                        <View style={{ gap: 8 }}>
+                          {displayReasons.map((reason, index) => (
+                            <Text key={`${reason}-${index}`} style={{ fontSize: 14, color: M.textBody, lineHeight: 20 }}>
+                              • {reason}
+                            </Text>
+                          ))}
+                        </View>
+                      </ResultCard>
+                    ) : null}
 
                     {whyText ? (
-                      <View style={{ marginTop: 16 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: M.textMuted }}>{t('result.whyMatters', lang)}</Text>
+                      <ResultCard title={t('result.whyMatters', lang)}>
                         <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 21, color: M.textBody }}>{whyText}</Text>
-                      </View>
+                      </ResultCard>
                     ) : null}
 
                     {parentText ? (
-                      <View style={{ marginTop: 16 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: M.textMuted }}>{t('result.parentTakeaway', lang)}</Text>
+                      <ResultCard title={t('result.parentTakeaway', lang)} tone="mint">
                         <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 21, color: M.textBody }}>{parentText}</Text>
-                      </View>
+                      </ResultCard>
                     ) : null}
                   </>
                 ) : (
                   <View style={{ marginTop: 14, paddingBottom: 6 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '800', color: M.text, marginBottom: 2 }}>
-                      {t('result.ingredients.heading', lang)}
-                    </Text>
                     {ingredientPack.kind === 'fallback' ? (
                       <Text style={{ marginTop: 12, fontSize: 14, lineHeight: 21, color: M.textBody }}>
                         {t('result.ingredients.failBreakdown', lang)}
@@ -436,57 +490,72 @@ export function ScanResultModal({
                     ) : (
                       <>
                         <IngredientSection
+                          title={t('result.ingredients.red', lang)}
+                          rows={ingredientPack.red}
+                          accent="#8B3A3A"
+                          tone="red"
+                          helper="Things to watch out for"
+                          isFirst
+                        />
+                        <IngredientSection
                           title={t('result.ingredients.good', lang)}
                           rows={ingredientPack.good}
                           accent="#2F6F4B"
-                          isFirst
+                          tone="good"
+                          isFirst={ingredientPack.red.length === 0}
                         />
                         <IngredientSection
                           title={t('result.ingredients.neutral', lang)}
                           rows={ingredientPack.neutral}
                           accent="#6B5C4A"
-                          isFirst={ingredientPack.good.length === 0}
-                        />
-                        <IngredientSection
-                          title={t('result.ingredients.red', lang)}
-                          rows={ingredientPack.red}
-                          accent="#8B3A3A"
-                          isFirst={ingredientPack.good.length === 0 && ingredientPack.neutral.length === 0}
+                          tone="neutral"
+                          isFirst={ingredientPack.red.length === 0 && ingredientPack.good.length === 0}
                         />
                       </>
                     )}
                   </View>
                 )}
-
-                <View style={{ marginTop: 20, flexDirection: 'row', gap: 10 }}>
-                  <Pressable
-                    onPress={onClose}
-                    style={{
-                      flex: 1,
-                      borderRadius: 14,
-                      backgroundColor: M.bgChipSelected,
-                      alignItems: 'center',
-                      paddingVertical: 13,
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('common.close', lang)}</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={onScanAgain}
-                    style={{
-                      flex: 1,
-                      borderRadius: 14,
-                      backgroundColor: M.inkButton,
-                      alignItems: 'center',
-                      paddingVertical: 13,
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('result.scanAgain', lang)}</Text>
-                  </Pressable>
-                </View>
               </>
             )}
           </ScrollView>
+          <View
+            style={{
+              paddingHorizontal: 22,
+              paddingTop: 12,
+              paddingBottom: 16,
+              borderTopWidth: 1,
+              borderTopColor: M.line,
+              backgroundColor: M.bgPage,
+              flexDirection: 'row',
+              gap: 10,
+            }}
+          >
+            <Pressable
+              onPress={onClose}
+              style={{
+                flex: 1,
+                borderRadius: M.r16,
+                backgroundColor: M.bgChipSelected,
+                alignItems: 'center',
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: M.textBody }}>{t('common.close', lang)}</Text>
+            </Pressable>
+            <Pressable
+              onPress={onScanAgain}
+              style={{
+                flex: 1,
+                borderRadius: M.r16,
+                backgroundColor: M.inkButton,
+                alignItems: 'center',
+                paddingVertical: 14,
+                ...M.shadowSoft,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: M.cream }}>{t('result.scanAgain', lang)}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
