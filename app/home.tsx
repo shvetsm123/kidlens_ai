@@ -90,15 +90,15 @@ function recentScanFromFavoriteItem(item: FavoriteListItem, recent: RecentScan[]
   };
 }
 
-function freeScanBadge(count: number): { label: string; bg: string; border: string; text: string; showCta: boolean } {
+function freeScanBadge(count: number): { label: string; bg: string; border: string; text: string } {
   const remaining = Math.max(0, 2 - Math.min(2, count));
   if (remaining >= 2) {
-    return { label: '2 scans left', bg: M.sageWash, border: M.lineSage, text: M.sageDeep, showCta: false };
+    return { label: '2 free scans left today', bg: M.sageWash, border: M.lineSage, text: M.sageDeep };
   }
   if (remaining === 1) {
-    return { label: '1 scan left', bg: '#FFF4D8', border: '#E8C989', text: '#7A5218', showCta: false };
+    return { label: '1 free scan left today', bg: '#FFF4D8', border: '#E8C989', text: '#7A5218' };
   }
-  return { label: 'No free scans left', bg: '#FCEAEA', border: '#E8C7C7', text: '#7A2E2E', showCta: true };
+  return { label: 'No free scans left today', bg: '#FCEAEA', border: '#E8C7C7', text: '#7A2E2E' };
 }
 
 type DailyScanSnapshot = { dateKey: string; count: number };
@@ -1038,10 +1038,15 @@ export default function HomeScreen() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
+                  flexShrink: 1,
                   gap: 8,
+                  marginLeft: 12,
                 }}
               >
-                <View
+                <Pressable
+                  onPress={() => navigatePaywall({ preselect: 'unlimited' })}
                   style={{
                     borderRadius: 999,
                     backgroundColor: scanBadge.bg,
@@ -1049,23 +1054,24 @@ export default function HomeScreen() {
                     borderColor: scanBadge.border,
                     paddingHorizontal: 11,
                     paddingVertical: 7,
+                    maxWidth: 190,
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: scanBadge.text }}>{scanBadge.label}</Text>
-                </View>
-                {scanBadge.showCta ? (
-                  <Pressable
-                    onPress={() => navigatePaywall()}
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 7,
-                      borderRadius: 999,
-                      backgroundColor: M.inkButton,
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: M.cream }}>Go unlimited</Text>
-                  </Pressable>
-                ) : null}
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: scanBadge.text }} numberOfLines={2}>
+                    {scanBadge.label}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => navigatePaywall({ preselect: 'unlimited' })}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 7,
+                    borderRadius: 999,
+                    backgroundColor: M.inkButton,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: M.cream }}>Go Unlimited</Text>
+                </Pressable>
               </View>
             ) : (
               <Pressable
