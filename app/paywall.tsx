@@ -63,15 +63,20 @@ export default function PaywallScreen() {
   );
   const upgradeOffer = useMemo(() => ['3-day free trial', 'Then $9.99/month', 'Cancel anytime'], []);
   const scanLockedBenefits = useMemo(
-    () => ['Sugar safety level', 'Hidden additives explained', 'Is it safe for your child?', 'Personalized by age'],
+    () => [
+      { icon: '🔍', label: 'Sugar safety level' },
+      { icon: '🧪', label: 'Additives explained' },
+      { icon: '👶', label: 'Kid-safe recommendation' },
+      { icon: '🎯', label: 'Personalized by age' },
+    ],
     [],
   );
   const scanLockedOffer = useMemo(() => ['3-day free trial', 'Then $9.99/month', 'Cancel anytime'], []);
   const scanLockedPreview = useMemo(
     () => [
       '⚠️ High sugar level detected',
-      '⚠️ Contains additives some parents avoid',
-      "Unlock full analysis to see if it's safe for your child",
+      '⚠️ Additives may need review',
+      '🔒 Full safety analysis locked',
     ],
     [],
   );
@@ -219,62 +224,108 @@ export default function PaywallScreen() {
           {isScanLockedSource ? '🔍 Barcode detected' : 'Upgrade to Unlimited'}
         </Text>
         {isScanLockedSource ? (
+          <Text style={{ marginTop: 8, fontSize: 16, lineHeight: 23, color: M.textBody, fontWeight: '700' }}>
+            {"You've used your free scans for today"}
+          </Text>
+        ) : null}
+        {isScanLockedSource ? (
           <>
-            <Text style={{ marginTop: 14, fontSize: 20, lineHeight: 28, color: M.text, fontWeight: '800' }}>
-              ⚠️ This product may not be ideal for toddlers
-            </Text>
-            <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: M.textMuted, fontWeight: '700' }}>
-              Contains ingredients some parents try to avoid
-            </Text>
-            <Text style={{ marginTop: 10, fontSize: 16, lineHeight: 24, color: M.textBody }}>
-              {"You've used your free scans for today. Unlock the full analysis to see what matters for your child."}
-            </Text>
-
             <View
               style={{
-                marginTop: 22,
-                padding: 20,
-                borderRadius: M.r22,
-                backgroundColor: M.bgCard,
+                marginTop: 14,
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                borderRadius: M.r20,
+                backgroundColor: '#FFF4D8',
                 borderWidth: 1,
-                borderColor: M.gold,
-                ...M.shadowCard,
+                borderColor: '#E8C989',
+                ...M.shadowSoft,
               }}
             >
-              <Text style={{ fontSize: 15, fontWeight: '800', color: M.textMuted }}>{"What you'll unlock:"}</Text>
-              <View style={{ marginTop: 14, gap: 9 }}>
-                {scanLockedBenefits.map((line) => (
-                  <Text key={line} style={{ fontSize: 16, lineHeight: 23, color: M.textBody, fontWeight: '700' }}>
-                    • {line}
-                  </Text>
-                ))}
+              <View
+                style={{
+                  alignSelf: 'flex-start',
+                  borderRadius: 999,
+                  backgroundColor: M.gold,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '800', color: M.cream, letterSpacing: 0.4 }}>ANALYSIS READY</Text>
               </View>
-
-              <View style={{ marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: M.line, gap: 8 }}>
-                {scanLockedOffer.map((line) => (
-                  <Text key={line} style={{ fontSize: 16, lineHeight: 23, color: M.text, fontWeight: '800' }}>
-                    • {line}
-                  </Text>
-                ))}
-              </View>
+              <Text style={{ marginTop: 12, fontSize: 20, lineHeight: 27, color: M.text, fontWeight: '800' }}>
+                This product may not be ideal for toddlers
+              </Text>
+              <Text style={{ marginTop: 6, fontSize: 15, lineHeight: 22, color: M.textBody, fontWeight: '700' }}>
+                Contains ingredients some parents try to avoid.
+              </Text>
             </View>
 
             <View
               style={{
-                marginTop: 16,
-                padding: 16,
-                borderRadius: M.r16,
-                backgroundColor: M.sageWash,
+                marginTop: 12,
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                borderRadius: M.r20,
+                backgroundColor: '#FCEAEA',
                 borderWidth: 1,
-                borderColor: M.lineSage,
-                gap: 8,
+                borderColor: '#E8C7C7',
+                ...M.shadowSoft,
               }}
             >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: M.text }}>What we detected</Text>
+              <View style={{ marginTop: 14, gap: 10 }}>
               {scanLockedPreview.map((line) => (
                 <Text key={line} style={{ fontSize: 15, lineHeight: 22, color: M.text, fontWeight: '800' }}>
                   {line}
                 </Text>
               ))}
+              </View>
+            </View>
+
+            <View
+              style={{
+                marginTop: 12,
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                borderRadius: M.r20,
+                backgroundColor: M.sageWash,
+                borderWidth: 1,
+                borderColor: M.lineSage,
+                ...M.shadowSoft,
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: M.text }}>Unlock full analysis</Text>
+              <View style={{ marginTop: 14, gap: 10 }}>
+                {scanLockedBenefits.map((item) => (
+                  <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={{ width: 24, fontSize: 17 }}>{item.icon}</Text>
+                    <Text style={{ flex: 1, fontSize: 15, lineHeight: 22, color: M.textBody, fontWeight: '700' }}>
+                      {item.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: M.line }}>
+                <View
+                  style={{
+                    alignSelf: 'flex-start',
+                    borderRadius: 999,
+                    backgroundColor: M.sageDeep,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: M.cream, letterSpacing: 0.4 }}>3 DAYS FREE</Text>
+                </View>
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 16, lineHeight: 23, color: M.text, fontWeight: '800' }}>{scanLockedOffer[0]}</Text>
+                  <Text style={{ fontSize: 14, lineHeight: 20, color: M.textBody, fontWeight: '700' }}>{scanLockedOffer[1]}</Text>
+                  <Text style={{ fontSize: 14, lineHeight: 20, color: M.textMuted, fontWeight: '700' }}>{scanLockedOffer[2]}</Text>
+                </View>
+              </View>
             </View>
           </>
         ) : (
@@ -353,18 +404,6 @@ export default function PaywallScreen() {
           </>
         )}
 
-        {isScanLockedSource ? (
-          <Text style={{ marginTop: 20, fontSize: 13, lineHeight: 18, color: M.textMuted, textAlign: 'center', fontWeight: '700' }}>
-            Trusted by thousands of parents
-          </Text>
-        ) : null}
-
-        {isScanLockedSource ? (
-          <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: M.textBody, textAlign: 'center', fontWeight: '700' }}>
-            Start your free trial to see the full result
-          </Text>
-        ) : null}
-
         <Pressable
           onPress={() => void onContinue()}
           disabled={continueDisabled || rcBusy}
@@ -385,16 +424,10 @@ export default function PaywallScreen() {
             {continueDisabled
               ? t('pay.currentSelection', lang)
               : isScanLockedSource
-                ? 'Start Free Trial'
+                ? 'Start Free Trial — No Charge Today'
                 : 'Start Free Trial — No Charge Today'}
           </Text>
         </Pressable>
-
-        {isScanLockedSource ? (
-          <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 18, color: M.textMuted, textAlign: 'center', fontWeight: '700' }}>
-            No charge today
-          </Text>
-        ) : null}
 
         {visibleLastError ? (
           <Text style={{ marginTop: 10, fontSize: 13, lineHeight: 18, color: '#A94442', textAlign: 'center' }}>{visibleLastError}</Text>
