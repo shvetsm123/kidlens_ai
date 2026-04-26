@@ -47,8 +47,7 @@ export default function OnboardingScreen() {
     {
       image: ONBOARD_IMAGES[1],
       title: 'Built for your child',
-      subtitle: "Every result is tailored to your child's age and your preferences — so you can trust every decision.",
-    },
+      subtitle: "We tailor results to your child's age and your preferences — giving you helpful guidance, not final decisions."    },
     {
       image: ONBOARD_IMAGES[2],
       title: 'No more label confusion',
@@ -370,12 +369,13 @@ export default function OnboardingScreen() {
                             paddingVertical: 12,
                             paddingHorizontal: 16,
                             borderRadius: 999,
-                            backgroundColor: selected ? M.bgChipSelected : M.bgChip,
+                            backgroundColor: selected ? '#FCEAEA' : M.bgChip,
                             borderWidth: 1.5,
-                            borderColor: selected ? M.gold : M.line,
+                            borderColor: selected ? '#B65A5A' : M.line,
                           }}
                         >
-                          <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? M.text : M.textBody }}>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? '#7A2E2E' : M.textBody }}>
+                            {selected ? '✕ ' : ''}
                             {avoidLabel(id, lang)}
                           </Text>
                         </Pressable>
