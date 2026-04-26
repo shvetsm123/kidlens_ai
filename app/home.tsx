@@ -118,6 +118,11 @@ type PendingPostScanOutcome =
   | { kind: 'error'; title: string; message: string };
 
 const POST_SCAN_RESULT_DELAY_MS = Platform.OS === 'ios' ? 80 : 0;
+const SCAN_LOCKED_ANALYZING_DELAY_MS = 650;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default function HomeScreen() {
   const { gatedPlan, customerInfo } = useRevenueCat();
@@ -155,6 +160,7 @@ export default function HomeScreen() {
   const [scanPipelineLoading, setScanPipelineLoading] = useState(false);
   /** i18n key from `scan.progress.*`; shown on the scan loading overlay. */
   const [scanProgressKey, setScanProgressKey] = useState<string | null>(null);
+  const [scanProgressTextOverride, setScanProgressTextOverride] = useState<string | null>(null);
   const [scanError, setScanError] = useState<{ title: string; message: string } | null>(null);
   const [plan, setPlan] = useState<Plan>('free');
   const effectivePlan = useMemo(() => gatedPlan(plan), [gatedPlan, plan]);
@@ -238,6 +244,7 @@ export default function HomeScreen() {
         }
         setScanPipelineLoading(false);
         setScanProgressKey(null);
+        setScanProgressTextOverride(null);
         scanPipelineLoadingRef.current = false;
         isProcessingScanRef.current = false;
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -270,6 +277,7 @@ export default function HomeScreen() {
         }
         setScanPipelineLoading(false);
         setScanProgressKey(null);
+        setScanProgressTextOverride(null);
         scanPipelineLoadingRef.current = false;
         isProcessingScanRef.current = false;
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -439,6 +447,7 @@ export default function HomeScreen() {
     setUnknownScan(null);
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     isProcessingScanRef.current = false;
     setScannerModalVisible(false);
@@ -450,6 +459,7 @@ export default function HomeScreen() {
     setUnknownScan(null);
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     isProcessingScanRef.current = false;
     setScannerCameraKey((k) => k + 1);
@@ -463,6 +473,7 @@ export default function HomeScreen() {
     setUnknownScan(null);
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     isProcessingScanRef.current = false;
   };
@@ -515,6 +526,7 @@ export default function HomeScreen() {
     setScannerModalVisible(false);
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     isProcessingScanRef.current = false;
   }, [clearPostScanHandoff]);
@@ -539,6 +551,7 @@ export default function HomeScreen() {
     setUnknownScan(null);
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     setScannerCameraKey((k) => k + 1);
     setScannerModalVisible(true);
@@ -569,6 +582,7 @@ export default function HomeScreen() {
     setScannerModalVisible(false);
     scanPipelineLoadingRef.current = true;
     setScanProgressKey('scan.progress.checking_db');
+    setScanProgressTextOverride(null);
     setScanPipelineLoading(true);
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.warn('[scanFlow] loading overlay visible');
@@ -626,13 +640,11 @@ export default function HomeScreen() {
         pendingLockedScanBarcodeRef.current = normBarcode;
         pendingLockedScanProductPreviewRef.current = { barcode: normBarcode };
         isProcessingScanRef.current = false;
-        setScanPipelineLoading(false);
         setScanProgressKey(null);
-        scanPipelineLoadingRef.current = false;
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.warn('[scanFlow] loading hidden');
-        }
+        setScanProgressTextOverride('Analyzing ingredients...');
+        console.log('scan_locked_analyzing_shown');
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        await delay(SCAN_LOCKED_ANALYZING_DELAY_MS);
         navigatePaywall({ preselect: 'unlimited', source: 'scan_locked' });
         return;
       }
@@ -721,6 +733,7 @@ export default function HomeScreen() {
       if (!expectingScannerDismissHandoffRef.current) {
         setScanPipelineLoading(false);
         setScanProgressKey(null);
+        setScanProgressTextOverride(null);
         scanPipelineLoadingRef.current = false;
         isProcessingScanRef.current = false;
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -813,6 +826,7 @@ export default function HomeScreen() {
     clearPostScanHandoff();
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     setScanError(null);
     setUnknownResultVisible(false);
@@ -840,6 +854,7 @@ export default function HomeScreen() {
     setUnknownScan(null);
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     setScannerModalVisible(false);
     setModalScan(null);
@@ -858,6 +873,7 @@ export default function HomeScreen() {
     setUnknownScan(null);
     setScanPipelineLoading(false);
     setScanProgressKey(null);
+    setScanProgressTextOverride(null);
     scanPipelineLoadingRef.current = false;
     setScannerModalVisible(false);
     setActiveModalScanId(null);
@@ -1524,7 +1540,7 @@ export default function HomeScreen() {
           >
             <ActivityIndicator size="large" color={M.ink} />
             <Text style={{ marginTop: 16, fontSize: 17, fontWeight: '700', color: M.text, textAlign: 'center' }}>
-              {scanProgressKey ? t(scanProgressKey, lang) : t('loading.checking', lang)}
+              {scanProgressTextOverride ?? (scanProgressKey ? t(scanProgressKey, lang) : t('loading.checking', lang))}
             </Text>
             <Text style={{ marginTop: 8, fontSize: 14, color: M.textMuted, textAlign: 'center', lineHeight: 20 }}>
               {scanProgressKey ? t('scan.progress.subtle', lang) : t('loading.wait', lang)}
