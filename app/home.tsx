@@ -89,15 +89,15 @@ function recentScanFromFavoriteItem(item: FavoriteListItem, recent: RecentScan[]
   };
 }
 
-function freeDailyScanUsageLabel(successCount: number, lang: ReturnType<typeof getAppLanguage>): string {
-  const c = Math.min(2, Math.max(0, successCount));
-  if (c === 0) {
-    return t('home.scansLeft0', lang);
+function freeScanBadge(count: number): { label: string; bg: string; border: string; text: string; showCta: boolean } {
+  const remaining = Math.max(0, 2 - Math.min(2, count));
+  if (remaining >= 2) {
+    return { label: '2 scans left', bg: M.sageWash, border: M.lineSage, text: M.sageDeep, showCta: false };
   }
-  if (c === 1) {
-    return t('home.scansLeft1', lang);
+  if (remaining === 1) {
+    return { label: '1 scan left', bg: '#FFF4D8', border: '#E8C989', text: '#7A5218', showCta: false };
   }
-  return t('home.scansLeft2', lang);
+  return { label: 'No free scans left', bg: '#FCEAEA', border: '#E8C7C7', text: '#7A2E2E', showCta: true };
 }
 
 type DailyScanSnapshot = { dateKey: string; count: number };
@@ -942,6 +942,7 @@ export default function HomeScreen() {
   };
 
   const scanForResultModal = resultModalVisible ? (modalScan ?? displayScan) : null;
+  const scanBadge = freeScanBadge(dailyScanState.count);
 
   return (
     <SafeAreaView
@@ -976,17 +977,39 @@ export default function HomeScreen() {
               <Ionicons name="options-outline" size={22} color={M.ink} />
             </Pressable>
             {effectivePlan === 'free' ? (
-              <Pressable
-                onPress={() => navigatePaywall()}
+              <View
                 style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                  backgroundColor: M.bgChipSelected,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: M.textBody }}>{t('common.upgrade', lang)}</Text>
-              </Pressable>
+                <View
+                  style={{
+                    borderRadius: 999,
+                    backgroundColor: scanBadge.bg,
+                    borderWidth: 1,
+                    borderColor: scanBadge.border,
+                    paddingHorizontal: 11,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: scanBadge.text }}>{scanBadge.label}</Text>
+                </View>
+                {scanBadge.showCta ? (
+                  <Pressable
+                    onPress={() => navigatePaywall()}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 7,
+                      borderRadius: 999,
+                      backgroundColor: M.inkButton,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: M.cream }}>Go unlimited</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : (
               <Pressable
                 onPress={() => navigatePaywall()}
@@ -1005,67 +1028,41 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
-          {effectivePlan === 'free' ? (
-            <Text
-              style={{
-                fontSize: 13,
-                color: M.textSoft,
-                fontWeight: '600',
-                textAlign: 'right',
-                letterSpacing: 0.2,
-              }}
-            >
-              {freeDailyScanUsageLabel(dailyScanState.count, lang)}
-            </Text>
-          ) : null}
         </View>
 
         <View
           style={{
             borderRadius: M.r28,
             backgroundColor: M.bgCard,
-            padding: 22,
+            padding: 18,
+            borderWidth: 1,
+            borderColor: M.line,
+            overflow: 'hidden',
             ...M.shadowCard,
           }}
         >
           <Text style={{ fontSize: 29, lineHeight: 34, fontWeight: '700', color: M.text }}>
-            {t('home.scanTitle', lang)}
+            Scan a product
           </Text>
           <Text style={{ marginTop: 10, fontSize: 16, lineHeight: 23, color: M.textBody }}>
-            {t('home.scanSubtitle', lang)}
+            {"Check if it's safe for your child in 2 seconds"}
           </Text>
-
-          <View
-            style={{
-              marginTop: 18,
-              borderRadius: M.r20,
-              height: 160,
-              backgroundColor: M.sageWash,
-              borderWidth: 1,
-              borderColor: M.lineSage,
-              overflow: 'hidden',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="barcode-outline" size={52} color={M.sage} />
-          </View>
 
           <Pressable
             onPress={openScanner}
             style={{
-              marginTop: 16,
-              borderRadius: M.r16,
+              marginTop: 18,
+              borderRadius: M.r18,
               backgroundColor: M.inkButton,
-              paddingVertical: 16,
+              paddingVertical: 19,
               alignItems: 'center',
               ...M.shadowSoft,
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '700', color: M.cream }}>{t('home.scanProduct', lang)}</Text>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: M.cream }}>Scan product</Text>
           </Pressable>
 
-          <View style={{ marginTop: 18, alignItems: 'center' }}>
+          <View style={{ marginTop: 16, alignItems: 'center' }}>
             <Text
               style={{
                 fontSize: 12,
@@ -1092,17 +1089,28 @@ export default function HomeScreen() {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingVertical: 14,
+                paddingVertical: 13,
                 paddingHorizontal: 16,
                 borderRadius: M.r16,
-                backgroundColor: M.bgChip,
+                backgroundColor: 'rgba(255,252,247,0.82)',
                 borderWidth: 1,
-                borderColor: M.line,
+                borderColor: M.lineSage,
                 gap: 12,
                 ...M.shadowSoft,
               }}
             >
-              <Ionicons name="barcode-outline" size={22} color={M.sage} />
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 999,
+                  backgroundColor: M.sageWash,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="barcode-outline" size={19} color={M.sageDeep} />
+              </View>
               <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: M.textBody }} numberOfLines={1}>
                 {t('home.enterBarcodeManually', lang)}
               </Text>
@@ -1112,7 +1120,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 21, fontWeight: '700', color: M.text }}>{t('home.recentScans', lang)}</Text>
+          <Text style={{ fontSize: 21, fontWeight: '700', color: M.text }}>Recent safety checks</Text>
 
           {recentScans.length === 0 ? (
             <>
