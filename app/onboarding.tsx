@@ -39,18 +39,18 @@ export default function OnboardingScreen() {
   const heroSlides: HeroSlide[] = [
     {
       image: ONBOARD_IMAGES[0],
-      title: t('onboard.slide1.title', lang),
-      subtitle: t('onboard.slide1.sub', lang),
+      title: "Know what's safe — instantly",
+      subtitle: 'Scan any product and get a clear answer in seconds — no guessing, no stress.',
     },
     {
       image: ONBOARD_IMAGES[1],
-      title: t('onboard.slide2.title', lang),
-      subtitle: t('onboard.slide2.sub', lang),
+      title: 'Built for your child',
+      subtitle: "Every result is tailored to your child's age and your preferences — so you can trust every decision.",
     },
     {
       image: ONBOARD_IMAGES[2],
-      title: t('onboard.slide3.title', lang),
-      subtitle: t('onboard.slide3.sub', lang),
+      title: 'No more label confusion',
+      subtitle: "We break down ingredients into simple, clear insights — so you know what's good, what's not, and why.",
     },
   ];
 
@@ -59,9 +59,8 @@ export default function OnboardingScreen() {
   const slide = isHeroStep ? heroSlides[step] : null;
 
   const contentMaxW = Math.min(winW, 420);
-  const columnW = Math.min(winW - H_PADDING * 2, contentMaxW);
-  /** Large hero card; height scales with width so cover stays balanced (no letterboxing). */
-  const imageCardHeight = Math.min(Math.max(columnW * 0.98, 272), winH * 0.5);
+  /** Tall hero art frame with a single rounded clipping container. */
+  const imageCardHeight = Math.min(440, Math.max(400, winH * 0.56));
 
   useEffect(() => {
     if (isFirstStepMount.current) {
@@ -138,7 +137,7 @@ export default function OnboardingScreen() {
       }}
     >
       <Text style={{ color: M.cream, fontSize: 17, fontWeight: '700' }}>
-        {isFinalStep ? t('common.continue', lang) : t('common.next', lang)}
+        {isFinalStep ? 'Get started' : 'Continue'}
       </Text>
     </Pressable>
   );
@@ -197,7 +196,7 @@ export default function OnboardingScreen() {
               contentContainerStyle={{
                 flexGrow: 1,
                 paddingHorizontal: H_PADDING,
-                paddingTop: 10,
+                paddingTop: 8,
                 paddingBottom: 20,
                 alignItems: 'center',
               }}
@@ -211,11 +210,12 @@ export default function OnboardingScreen() {
                     width: '100%',
                     height: imageCardHeight,
                     borderRadius: M.r28,
-                    backgroundColor: M.bgCardMuted,
-                    borderWidth: 1,
-                    borderColor: M.line,
                     overflow: 'hidden',
-                    ...M.shadowCard,
+                    shadowColor: '#4A3828',
+                    shadowOpacity: 0.08,
+                    shadowRadius: 18,
+                    shadowOffset: { width: 0, height: 8 },
+                    elevation: 3,
                   }}
                 >
                   <Image
@@ -226,7 +226,7 @@ export default function OnboardingScreen() {
                   />
                 </View>
 
-                <View style={{ height: 28 }} />
+                <View style={{ height: 24 }} />
 
                 <Text
                   style={{
