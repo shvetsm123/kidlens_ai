@@ -112,7 +112,11 @@ export function RecentScanCard({ scan, onPress, onSave, onDelete }: RecentScanCa
   };
 
   const handleGestureEvent = (event: PanGestureHandlerGestureEvent) => {
-    const next = Math.max(-ACTION_WIDTH, Math.min(ACTION_WIDTH, openOffsetRef.current + event.nativeEvent.translationX));
+    const start = openOffsetRef.current;
+    const raw = start + event.nativeEvent.translationX;
+    const min = start > 0 ? 0 : -ACTION_WIDTH;
+    const max = start < 0 ? 0 : ACTION_WIDTH;
+    const next = Math.max(min, Math.min(max, raw));
     translateX.setValue(next);
   };
 
@@ -129,6 +133,31 @@ export function RecentScanCard({ scan, onPress, onSave, onDelete }: RecentScanCa
     }
 
     const total = openOffsetRef.current + translationX;
+    if (openOffsetRef.current > 0) {
+      if (translationX > ACTION_THRESHOLD || velocityX > VELOCITY_THRESHOLD) {
+        triggerSave();
+        return;
+      }
+      if (translationX < 0 || velocityX < -VELOCITY_THRESHOLD) {
+        close();
+        return;
+      }
+      animateTo(ACTION_WIDTH);
+      return;
+    }
+    if (openOffsetRef.current < 0) {
+      if (translationX < -ACTION_THRESHOLD || velocityX < -VELOCITY_THRESHOLD) {
+        triggerDelete();
+        return;
+      }
+      if (translationX > 0 || velocityX > VELOCITY_THRESHOLD) {
+        close();
+        return;
+      }
+      animateTo(-ACTION_WIDTH);
+      return;
+    }
+
     if (total > ACTION_THRESHOLD || velocityX > VELOCITY_THRESHOLD) {
       animateTo(ACTION_WIDTH);
       return;
