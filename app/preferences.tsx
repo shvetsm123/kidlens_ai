@@ -1,6 +1,6 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -156,7 +156,7 @@ export default function PreferencesScreen() {
         contentContainerStyle={{
           paddingHorizontal: 24,
           paddingTop: 4,
-          paddingBottom: 96,
+          paddingBottom: 24,
         }}
         keyboardShouldPersistTaps="handled"
       >

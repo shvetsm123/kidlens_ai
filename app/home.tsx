@@ -19,21 +19,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { M } from '../constants/mamaTheme';
+import {
+  addFavorite,
+  getFavorites,
+  getOrCreateProductId,
+  getSupabase,
+  isFavorite,
+  isSupabaseConfigured,
+  removeFavorite,
+} from '../src/api/supabase';
 import { RecentScanCard } from '../src/components/RecentScanCard';
 import { ScanResultModal } from '../src/components/ScanResultModal';
 import { ScannerModal } from '../src/components/ScannerModal';
+import type { ChildAgeProfile } from '../src/lib/childAgeContext';
+import { serializeChildAgePreferenceForContext } from '../src/lib/childAgeContext';
+import { showFavoritesUnlimitedUpsell } from '../src/lib/favoritesInsightsAlert';
 import { getAppLanguage, t } from '../src/lib/i18n';
 import { digitsOnlyFromBarcodeInput, isValidManualBarcodeDigits } from '../src/lib/manualBarcode';
 import { buildRecentScanFromBarcode, createFallbackRecentScan } from '../src/lib/mockScanResult';
-import { showFavoritesUnlimitedUpsell } from '../src/lib/favoritesInsightsAlert';
-import type { ChildAgeProfile } from '../src/lib/childAgeContext';
-import { serializeChildAgePreferenceForContext } from '../src/lib/childAgeContext';
 import { buildScanAnalysisContextKey, findRecentScanForReuse } from '../src/lib/scanAnalysisContext';
 import {
   addRecentScan,
   canUseSuccessfulScanForPlan,
-  getAvoidPreferences,
   ensureSupabaseProfileLocal,
+  getAvoidPreferences,
   getCachedSupabaseProfileId,
   getChildAgeProfile,
   getDailySuccessfulScanState,
@@ -45,15 +54,6 @@ import {
   tryPersistSuccessfulScanToSupabase,
   waitUntilPreferencesSyncIdle,
 } from '../src/lib/storage';
-import {
-  addFavorite,
-  getFavorites,
-  getOrCreateProductId,
-  getSupabase,
-  isFavorite,
-  isSupabaseConfigured,
-  removeFavorite,
-} from '../src/api/supabase';
 import { useRevenueCat } from '../src/providers/RevenueCatProvider';
 import type { FavoriteListItem } from '../src/types/ai';
 import type { AvoidPreference, Plan } from '../src/types/preferences';
@@ -1267,6 +1267,47 @@ export default function HomeScreen() {
             </View>
           </Pressable>
         </View>
+
+        <Pressable
+          onPress={() => router.push('/share-video')}
+          accessibilityRole="button"
+          accessibilityLabel="Submit a KidLens video"
+          style={({ pressed }) => ({
+            borderRadius: M.r18,
+            backgroundColor: M.bgCardMuted,
+            borderWidth: 1,
+            borderColor: M.line,
+            paddingVertical: 14,
+            paddingHorizontal: 15,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            opacity: pressed ? 0.72 : 1,
+            ...M.shadowSoft,
+          })}
+        >
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 999,
+              backgroundColor: M.bgChipSelected,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="videocam-outline" size={18} color={M.textMuted} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: M.text }} numberOfLines={1}>
+              Share your KidLens video
+            </Text>
+            <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, fontWeight: '600', color: M.textMuted }}>
+              We review submissions weekly
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={M.textSoft} />
+          </Pressable>
 
         <View style={{ gap: 12 }}>
           <Text style={{ fontSize: 21, fontWeight: '700', color: M.text }}>Recent safety checks</Text>
