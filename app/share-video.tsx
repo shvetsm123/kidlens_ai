@@ -107,6 +107,36 @@ function formatCreatedDate(rawDate: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }
 
+function getSubmissionStatusBadge(status: CreatorSubmission['status']): {
+  label: string;
+  backgroundColor: string;
+  borderColor: string;
+  textColor: string;
+} {
+  if (status === 'selected' || status === 'paid') {
+    return {
+      label: status === 'paid' ? 'Paid' : 'Selected',
+      backgroundColor: M.sageWash,
+      borderColor: M.lineSage,
+      textColor: M.sageDeep,
+    };
+  }
+  if (status === 'not_selected' || status === 'rejected') {
+    return {
+      label: 'Not selected',
+      backgroundColor: M.bgCardMuted,
+      borderColor: M.line,
+      textColor: M.textMuted,
+    };
+  }
+  return {
+    label: 'Pending',
+    backgroundColor: M.bgChipSelected,
+    borderColor: M.line,
+    textColor: M.textMuted,
+  };
+}
+
 const ExampleVideoCard = memo(function ExampleVideoCard({
   example,
   isPlaying,
@@ -274,7 +304,7 @@ export default function ShareVideoScreen() {
       setVideoUrl('');
       setContactType('email');
       setContactValue('');
-      setSubmissions((current) => [result.submission, ...current.filter((item) => item.id !== result.submission.id)]);
+      await loadHistory();
     } finally {
       setSubmitting(false);
     }
@@ -331,7 +361,7 @@ export default function ShareVideoScreen() {
             Share your KidLens video
           </Text>
           <Text style={{ marginTop: 9, fontSize: 15, lineHeight: 22, color: M.textMuted }}>
-            Post a short video showing KidLens AI in use. Submit your link below — we review submissions weekly.
+            Post a short video showing KidLens AI in use. Submit your link below — best videos get rewarded.
           </Text>
 
           <Pressable
@@ -388,7 +418,7 @@ export default function ShareVideoScreen() {
             }}
           >
             <View>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: M.textMuted }}>Video link</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800' }}>Video link</Text>
               <TextInput
                 value={videoUrl}
                 onChangeText={(value) => {
@@ -418,7 +448,7 @@ export default function ShareVideoScreen() {
             </View>
 
             <View style={{ marginTop: 18 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: M.textMuted }}>Contact method</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800' }}>Contact method</Text>
               <View style={{ marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {contactOptions.map((option) => {
                   const selected = contactType === option.value;
@@ -457,7 +487,7 @@ export default function ShareVideoScreen() {
             </View>
 
             <View style={{ marginTop: 18 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: M.textMuted }}>Contact</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800' }}>Contact</Text>
               <TextInput
                 value={contactValue}
                 onChangeText={(value) => {
@@ -551,28 +581,49 @@ export default function ShareVideoScreen() {
               </Text>
             ) : (
               <View style={{ marginTop: 12, gap: 10 }}>
-                {submissions.map((submission) => (
-                  <Pressable
-                    key={submission.id}
-                    onPress={() => void openSubmissionLink(submission.video_url)}
-                    style={({ pressed }) => ({
-                      borderRadius: M.r18,
-                      backgroundColor: M.bgCard,
-                      borderWidth: 1,
-                      borderColor: M.line,
-                      paddingVertical: 13,
-                      paddingHorizontal: 14,
-                      opacity: pressed ? 0.72 : 1,
-                    })}
-                  >
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: M.text }} numberOfLines={1}>
-                      {shortenUrl(submission.video_url)}
-                    </Text>
-                    <Text style={{ marginTop: 6, fontSize: 12, color: M.textMuted, fontWeight: '600' }}>
-                      {formatCreatedDate(submission.created_at)}
-                    </Text>
-                  </Pressable>
-                ))}
+                {submissions.map((submission) => {
+                  const statusBadge = getSubmissionStatusBadge(submission.status);
+                  return (
+                    <Pressable
+                      key={submission.id}
+                      onPress={() => void openSubmissionLink(submission.video_url)}
+                      style={({ pressed }) => ({
+                        borderRadius: M.r18,
+                        backgroundColor: M.bgCard,
+                        borderWidth: 1,
+                        borderColor: M.line,
+                        paddingVertical: 13,
+                        paddingHorizontal: 14,
+                        opacity: pressed ? 0.72 : 1,
+                      })}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: M.text }} numberOfLines={1}>
+                            {shortenUrl(submission.video_url)}
+                          </Text>
+                          <Text style={{ marginTop: 6, fontSize: 12, color: M.textMuted, fontWeight: '600' }}>
+                            {formatCreatedDate(submission.created_at)}
+                          </Text>
+                        </View>
+                        <View
+                          style={{
+                            borderRadius: 999,
+                            backgroundColor: statusBadge.backgroundColor,
+                            borderWidth: 1,
+                            borderColor: statusBadge.borderColor,
+                            paddingVertical: 5,
+                            paddingHorizontal: 9,
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: statusBadge.textColor }}>
+                            {statusBadge.label}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
           </View>

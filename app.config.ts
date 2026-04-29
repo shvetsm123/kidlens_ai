@@ -48,7 +48,7 @@ const config: ExpoConfig = {
 
   android: {
     package: 'com.mikhail.kidlensai',
-    versionCode: 1,
+    versionCode: 2,
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',

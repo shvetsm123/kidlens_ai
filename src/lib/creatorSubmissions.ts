@@ -151,7 +151,7 @@ export async function fetchCreatorSubmissions(): Promise<FetchCreatorSubmissions
     return {
       submissions: cached,
       source: 'cache',
-      warning: 'Submission status could not be refreshed right now.',
+      warning: 'Submissions could not be refreshed right now.',
     };
   }
   const client = getSupabase();
@@ -159,21 +159,24 @@ export async function fetchCreatorSubmissions(): Promise<FetchCreatorSubmissions
     return {
       submissions: cached,
       source: 'cache',
-      warning: 'Submission status could not be refreshed right now.',
+      warning: 'Submissions could not be refreshed right now.',
     };
   }
 
   try {
-    const [deviceId, profileId] = await Promise.all([getOrCreateDeviceId(), getCachedSupabaseProfileId()]);
-    const { data, error } = await client.rpc('fetch_creator_submissions_for_device', {
-      p_device_id: deviceId,
-      p_profile_id: profileId,
-    });
+    const deviceId = await getOrCreateDeviceId();
+    const { data, error } = await client
+      .from('creator_submissions')
+      .select('id, created_at, video_url, contact_type, contact_value, status')
+      .eq('device_id', deviceId)
+      .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('[creatorSubmissions] remote fetch failed', {
+      console.warn('[creatorSubmissions] failed to fetch creator_submissions by device_id', {
+        deviceId,
         message: error.message,
         code: error.code,
+        details: error.details,
       });
       return {
         submissions: cached,
@@ -188,7 +191,7 @@ export async function fetchCreatorSubmissions(): Promise<FetchCreatorSubmissions
     await writeCachedSubmissions(remoteRows);
     return { submissions: remoteRows, source: 'remote', warning: null };
   } catch (e) {
-    console.warn('[creatorSubmissions] remote fetch exception', e);
+    console.warn('[creatorSubmissions] unexpected error fetching creator_submissions by device_id', e);
     return {
       submissions: cached,
       source: 'cache',

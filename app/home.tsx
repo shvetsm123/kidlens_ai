@@ -1303,7 +1303,7 @@ export default function HomeScreen() {
               Share your KidLens video
             </Text>
             <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, fontWeight: '600', color: M.textMuted }}>
-              We review submissions weekly
+              Best videos get rewarded
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={M.textSoft} />
